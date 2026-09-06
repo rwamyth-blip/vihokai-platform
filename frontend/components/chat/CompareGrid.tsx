@@ -1,4 +1,3 @@
-
 "use client";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
@@ -44,6 +43,7 @@ export default function CompareGrid({ allAnswers, finalAnswer, judgeBy, mode, lo
       </div>
       <AnimatePresence>
         {mode === "synthesize" && finalAnswer && (
+          // @ts-ignore -- framer-motion type conflict with React 19 types
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative rounded-[20px] border border-yellow-500/30 bg-gradient-to-br from-zinc-900 to-zinc-950 p-6 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-xl bg-yellow-500/20"><Trophy className="w-5 h-5 text-yellow-400" /></div>
