@@ -1,5 +1,6 @@
 "use client"
 import { useState, useMemo, useRef, useEffect } from "react"
+import type { ReactNode } from "react"
 import { useRouter, useParams, usePathname } from "next/navigation"
 import {
   Plus,
@@ -353,6 +354,7 @@ const COPY: any = {
 // ===== คำแปลเพิ่มเติม (เมนู, Pro, เครื่องมือ AI) =====
 const EXTRA_COPY: Record<string, Record<string, string>> = {
   th: {
+    badgeNew: "ใหม่",
     navAllChats: "แชททั้งหมด",
     navModel: "AI โมเดล",
     navImage: "สร้างภาพ (AI Image)",
@@ -384,6 +386,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     toolPresentation: "สร้างสไลด์", toolPresentationDesc: "AI สไลด์",
   },
   en: {
+    badgeNew: "NEW",
     navAllChats: "All Chats",
     navModel: "AI Models",
     navImage: "Create Image (AI Image)",
@@ -415,6 +418,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     toolPresentation: "Create Slides", toolPresentationDesc: "AI Presentation",
   },
   zh: {
+    badgeNew: "新",
     navAllChats: "全部聊天",
     navModel: "AI 模型",
     navImage: "AI 绘图",
@@ -446,6 +450,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     toolPresentation: "生成幻灯片", toolPresentationDesc: "AI 演示文稿",
   },
   ja: {
+    badgeNew: "新",
     navAllChats: "すべてのチャット",
     navModel: "AIモデル",
     navImage: "AI画像生成",
@@ -477,6 +482,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     toolPresentation: "スライド作成", toolPresentationDesc: "AIプレゼン",
   },
   ko: {
+    badgeNew: "새로운",
     navAllChats: "모든 채팅",
     navModel: "AI 모델",
     navImage: "AI 이미지 생성",
@@ -1705,7 +1711,7 @@ function NavItem({
   active = false,
   badge,
 }: {
-  icon: React.ReactNode
+  icon: ReactNode
   label: string
   active?: boolean
   badge?: string
