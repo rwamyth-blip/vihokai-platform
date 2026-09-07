@@ -9,16 +9,9 @@ export default function AuthPage() {
 
   const handleGoogleLogin = () => {
     setLoading(true)
-    // เรียก Backend เพื่อรับ URL Login Google
-    fetch("http://localhost:8000/api/auth/google")
-      .then(res => res.json())
-      .then(data => {
-        window.location.href = data.url
-      })
-      .catch(err => {
-        setError("เกิดข้อผิดพลาดในการเชื่อมต่อ")
-        setLoading(false)
-      })
+    // Backend /api/auth/google ตอบ 302 redirect → ไป Google โดยตรง
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    window.location.href = `${API_BASE}/api/auth/google`
   }
 
   // รับ callback จาก Backend

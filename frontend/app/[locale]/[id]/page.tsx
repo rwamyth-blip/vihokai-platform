@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+
 type Message = { role: string; content: string; id: string }
 type ChatDetail = {
 	id: string
@@ -30,7 +32,7 @@ export default function ChatDetailPage() {
 	const fetchChat = async () => {
 		setLoading(true)
 		try {
-			const res = await fetch(`http://127.0.0.1:8000/api/conversations/${chatId}?user_id=anon`)
+			const res = await fetch(`${API_BASE}/api/conversations/${chatId}?user_id=anon`)
 			if (!res.ok) throw new Error("ไม่พบแชทนี้")
 			const data = await res.json()
 			if (data?.error || !Array.isArray(data?.messages)) throw new Error("ไม่พบแชทนี้")
@@ -57,7 +59,7 @@ export default function ChatDetailPage() {
 		setChat((prev) => prev && { ...prev, messages: [...(prev.messages || []), userMsg] })
 
 		try {
-			const res = await fetch("http://127.0.0.1:8000/api/chat", {
+			const res = await fetch(`${API_BASE}/api/chat`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ question: q, locale, user_id: "anon", conversation_id: chatId }),
