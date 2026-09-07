@@ -1219,6 +1219,12 @@ export default function Page() {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto space-y-1 px-4">
           <NavItem icon={<MessageSquare size={19} />} label={t.navAllChats} active />
+          <NavItem
+            icon={<Database size={19} />}
+            label="Global Library"
+            badge="NEW"
+            onClick={() => router.push(`/${locale}/library`)}
+          />
           <NavItem icon={<Sparkles size={19} />} label={t.navModel} badge={t.badgeNew} />
           <NavItem icon={<ImageIcon size={19} />} label={t.navImage} />
           <NavItem icon={<FileText size={19} />} label={t.navDoc} />
@@ -1740,14 +1746,17 @@ function NavItem({
   label,
   active = false,
   badge,
+  onClick,
 }: {
   icon: ReactNode
   label: string
   active?: boolean
   badge?: string
+  onClick?: () => void
 }) {
   return (
     <button
+      onClick={onClick}
       className={`
         flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm
         transition
