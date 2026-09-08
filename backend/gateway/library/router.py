@@ -4,6 +4,9 @@ from .providers.openlibrary import OpenLibraryProvider
 from .providers.loc import LOCProvider
 from .providers.crossref import CrossrefProvider
 from .providers.nasa import NASAProvider
+from .providers.google_books import GoogleBooksProvider
+from .providers.wikipedia import WikipediaProvider
+from .providers.internet_archive import InternetArchiveProvider
 
 class LibraryRouter:
     def __init__(self):
@@ -12,6 +15,9 @@ class LibraryRouter:
             "loc": LOCProvider(),
             "crossref": CrossrefProvider(),
             "nasa": NASAProvider(),
+            "google_books": GoogleBooksProvider(),
+            "wikipedia": WikipediaProvider(),
+            "internet_archive": InternetArchiveProvider(),
         }
         self.providers = list(self.providers_map.values())
 

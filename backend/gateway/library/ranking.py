@@ -17,7 +17,15 @@ def rank_results(docs: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]
     scores = bm25.get_scores(_tokenize(query))
     
     # Boost by source credibility and recency
-    source_weights = {"crossref": 1.2, "openlibrary": 1.0, "loc": 1.1, "nasa": 0.9}
+    source_weights = {
+        "crossref": 1.2,
+        "openlibrary": 1.0,
+        "loc": 1.1,
+        "nasa": 0.9,
+        "google_books": 1.0,
+        "wikipedia": 0.9,
+        "internet_archive": 0.9,
+    }
     for i, d in enumerate(docs):
         src = d.get("source","")
         w = source_weights.get(src, 1.0)

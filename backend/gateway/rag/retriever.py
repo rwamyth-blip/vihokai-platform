@@ -1,14 +1,12 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from gateway.vector_db.search import semantic_search
-from gateway.library.router import LibraryRouter
-from gateway.library.normalizer import normalize_results
-from gateway.library.ranking import rank_results
+from gateway.library.search_library import search_library as search_library_facade
 
 class HybridRetriever:
     def __init__(self):
-        self.router = LibraryRouter()
+        pass
 
-    async def retrieve(self, query: str, top_k: int = 5, use_library: bool = True, search_live: bool = False) -> List[Dict[str, Any]]:
+    async def retrieve(self, query: str, top_k: int = 5, use_library: bool = True, search_live: bool = False, sources: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         results = []
         # 1) Vector DB
         try:
@@ -20,10 +18,8 @@ class HybridRetriever:
         # 2) Live library search for fresh context (optional)
         if use_library and search_live:
             try:
-                raw = await self.router.search(query, limit=top_k)
-                norm = normalize_results(raw)
-                ranked = rank_results(norm, query)[:top_k]
-                results.extend(ranked)
+                ranked = await search_library_facade(query, limit=top_k, sources=sources)
+                results.extend(ranked[:top_k])
             except Exception as e:
                 print(f"Live search fail: {e}")
         
