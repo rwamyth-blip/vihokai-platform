@@ -1118,11 +1118,11 @@ export default function Page() {
                 <div
                   className={
                     isUser
-                      ? "rounded-2xl rounded-tr-md bg-gradient-to-br from-orange-50 to-orange-100 dark:bg-[#2f2f2f] px-5 py-4"
-                      : "rounded-2xl rounded-tl-md bg-gradient-to-br from-blue-50 to-slate-50 dark:bg-[#2a2a2a] px-5 py-4"
+                      ? "rounded-2xl rounded-tr-md bg-gradient-to-br from-orange-50 to-orange-100 dark:bg-[#2f2f2f] px-5 py-4 text-slate-800 dark:text-zinc-100"
+                      : "rounded-2xl rounded-tl-md bg-gradient-to-br from-blue-50 to-slate-50 dark:bg-[#2a2a2a] px-5 py-4 text-slate-800 dark:text-zinc-100"
                   }
                 >
-                  <p className="text-sm leading-7 dark:text-white whitespace-pre-wrap">
+                  <p className="text-sm leading-7 whitespace-pre-wrap">
                     {m.content}
                   </p>
                 </div>

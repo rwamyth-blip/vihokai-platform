@@ -1,4 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+:root { color-scheme: light dark; }
 body { background: #0f0f0f; }
+
+/* Android contrast hotfix: ฟองพื้นอ่อนต้องตัวอักษรเข้มเสมอ */
+div[class*="from-orange-50"], div[class*="from-blue-50"],
+div[class*="to-orange-100"], div[class*="to-slate-50"] {
+  color: #1f2937;
+}
+div[class*="from-orange-50"] *, div[class*="from-blue-50"] *,
+div[class*="to-orange-100"] *, div[class*="to-slate-50"] * {
+  color: inherit;
+}
+.dark div[class*="dark:bg-[#2f2f2f]"], .dark div[class*="dark:bg-[#2a2a2a]"] {
+  color: #f4f4f5;
+}
