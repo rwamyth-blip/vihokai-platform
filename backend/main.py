@@ -7,9 +7,9 @@ VihokAI Main.py - FAST VERSION + COMMANDS + TRANSLATE
 """
 from fastapi import FastAPI, HTTPException, Query, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid, os, asyncio, json
 from urllib.parse import urlencode
 from dotenv import load_dotenv
@@ -36,6 +36,10 @@ from translate import translate_text_async
 from api.auth.google.callback import router as google_callback_router
 from auth import verify_jwt
 
+# ✅ Import Global Library Gateway (Library Search + RAG)
+from gateway.api import library as gateway_library
+from gateway.api import chat as gateway_chat
+
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 app = FastAPI(title="Vihok AI v4 - Fast Version + Commands + Translate", version="5.0")
@@ -51,14 +55,29 @@ ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ✅ จัดการ exception ทั่วไป: ส่ง JSON พร้อม CORS + log traceback
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exception(type(exc), exc, exc.__traceback__)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal error: {exc}"},
+    )
+
 # ✅ รวม Router
 app.include_router(translate_router)
 app.include_router(google_callback_router)
+
+# ✅ Global Library Gateway routers (Library Search + RAG Chat)
+app.include_router(gateway_library.router)
+app.include_router(gateway_chat.router)
 
 # ===== ตรวจสอบ API Keys =====
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -66,7 +85,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 KIMI_API_KEY = os.getenv("KIMI_API_KEY")
-CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
+CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
 
 print(f"🔑 GROQ: {'✅' if GROQ_API_KEY else '❌'}")
 print(f"🔑 Gemini: {'✅' if GEMINI_API_KEY else '❌'}")
@@ -152,7 +171,7 @@ async def call_groq(prompt: str, locale: str, name: str = None, system_prompt: s
         messages.append({"role": "user", "content": full_prompt})
         
         response = await client.chat.completions.create(
-            model="qwen/qwen-2.5-72b-instruct",
+            model=os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b"),
             messages=messages,
             max_tokens=600,
             temperature=0.6
@@ -168,7 +187,7 @@ async def call_gemini(prompt: str, locale: str, name: str = None, system_prompt:
             return None
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        model = genai.GenerativeModel("gemini-3.6-flash")
         mem_text = f"ผู้ใช้ชื่อ {name}. " if name else ""
         
         language_name = get_language_name(locale)
@@ -186,7 +205,7 @@ async def call_gemini(prompt: str, locale: str, name: str = None, system_prompt:
         try:
             import google.generativeai as genai
             genai.configure(api_key=GEMINI_API_KEY)
-            model = genai.GenerativeModel("gemini-2.5-pro")
+            model = genai.GenerativeModel("gemini-3.1-pro-preview")
             mem_text = f"ผู้ใช้ชื่อ {name}. " if name else ""
             full_prompt = f"""{mem_text}
 {system_prompt if system_prompt else ''}
@@ -265,10 +284,10 @@ async def call_kimi(prompt: str, locale: str, name: str = None, system_prompt: s
         messages.append({"role": "user", "content": f"{mem_text}{prompt} (ตอบเป็นภาษา {get_language_name(locale)} เท่านั้น กระชับ) "})
         
         response = await client.chat.completions.create(
-            model="kimi-k2-0711-preview",
+            model=os.getenv("KIMI_MODEL", "kimi-k3"),
             messages=messages,
             max_tokens=600,
-            temperature=0.6
+            temperature=1
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -373,7 +392,7 @@ async def ensure_conversation(user_id: str, conversation_id: str | None, title: 
     if USE_SUPABASE:
         # 1) มี conversation_id → ดึงจาก DB
         if conversation_id:
-            conv = await db_get_conversation(conversation_id)
+            conv = await db_get_conversation(user_id, conversation_id)
             if conv:
                 return conv
         # 2) ยังไม่มี → สร้างใหม่ใน Supabase
@@ -390,7 +409,7 @@ async def ensure_conversation(user_id: str, conversation_id: str | None, title: 
     conv = {
         "id": conversation_id or str(uuid.uuid4()),
         "title": title[:40] + ("..." if len(title) > 40 else ""),
-        "created_at": datetime.now().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "messages": [],
     }
     convs.insert(0, conv)
@@ -403,8 +422,8 @@ async def save_chat_result(user_id: str, conversation_id: str | None, question: 
 
     if USE_SUPABASE:
         # ✅ บันทึก messages ลง Supabase
-        await db_append_message(conv["id"], "user", question)
-        await db_append_message(conv["id"], "assistant", answer)
+        await db_append_message(user_id, conv["id"], "user", question)
+        await db_append_message(user_id, conv["id"], "assistant", answer)
 
         # ✅ บันทึกความทรงจำลง Supabase ด้วย
         if "ชื่ออะไร" not in question:
@@ -412,10 +431,10 @@ async def save_chat_result(user_id: str, conversation_id: str | None, question: 
         return conv["id"]
 
     # ---- fallback: in-memory ----
-    now = datetime.now().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     conv["messages"].extend([
         {"role": "user", "content": question, "timestamp": now},
-        {"role": "assistant", "content": answer, "timestamp": datetime.now().isoformat()},
+        {"role": "assistant", "content": answer, "timestamp": datetime.now(timezone.utc).isoformat()},
     ])
 
     if "ชื่ออะไร" not in question:
@@ -441,7 +460,7 @@ async def new_chat(req: NewChatRequest):
     new_conv = {
         "id": conv_id,
         "title": req.title,
-        "created_at": datetime.now().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "messages": []
     }
     
@@ -492,7 +511,7 @@ async def get_conversation(
     user_id: str = Query(default="anon")
 ):
     if USE_SUPABASE:
-        conv = await db_get_conversation(conversation_id)
+        conv = await db_get_conversation(user_id, conversation_id)
         if not conv:
             return {"error": "Conversation not found"}
         return conv
@@ -507,7 +526,7 @@ async def delete_conversation(
     user_id: str = Query(default="anon")
 ):
     if USE_SUPABASE:
-        await db_delete_conversation(conversation_id)
+        await db_delete_conversation(user_id, conversation_id)
         return {"status": "deleted", "conversation_id": conversation_id}
 
     # ---- fallback ----
@@ -574,7 +593,7 @@ async def chat(req: ChatRequest):
                     base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
                 )
                 judge_res = await client.chat.completions.create(
-                    model="qwen/qwen-2.5-72b-instruct",
+                    model=os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b"),
                     messages=[{"role": "user", "content": judge_prompt}],
                     max_tokens=400
                 )
@@ -669,7 +688,7 @@ async def save_memory(
 
     # ---- fallback: in-memory ----
     memories = memories_db.setdefault(user_id, [])
-    memories.append({"question": q, "answer": a, "saved_at": datetime.now().isoformat()})
+    memories.append({"question": q, "answer": a, "saved_at": datetime.now(timezone.utc).isoformat()})
     memories_db[user_id] = memories[-10:]
     return {"status": "saved", "user_id": uid, "question": q, "answer": a, "count": len(memories_db[uid]), "powered_by": "Vihok AI"}
 

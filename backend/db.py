@@ -3,14 +3,19 @@ Supabase Database Layer - สำหรับ Vihok AI Production
 ใช้แทน in-memory dict ใน main.py
 """
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from supabase import create_client, Client
 from dotenv import load_dotenv
+
+
+def utc_now_iso() -> str:
+    """เวลาปัจจุบัน UTC แบบ ISO8601 พร้อม timezone (+00:00)"""
+    return datetime.now(timezone.utc).isoformat()
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY", "")
 
 supabase: Client | None = None
 if SUPABASE_URL and SUPABASE_KEY:
@@ -50,7 +55,7 @@ async def db_create_conversation(user_id: str, title: str):
     if not supabase:
         return None
     conv_id = str(uuid.uuid4())
-    now = datetime.now().isoformat()
+    now = utc_now_iso()
     res = (supabase.table("conversations")
            .insert({
                "id": conv_id,
@@ -74,7 +79,7 @@ async def db_append_message(user_id: str, conversation_id: str, role: str, conte
     existing.append({
         "role": role,
         "content": content,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utc_now_iso(),
     })
 
     (supabase.table("conversations")
@@ -108,7 +113,7 @@ async def db_get_memories(user_id: str, limit: int = 10):
 async def db_save_memory(user_id: str, question: str, answer: str):
     if not supabase:
         return False
-    now = datetime.now().isoformat()
+    now = utc_now_iso()
     # ลบของเก่าที่คำถามซ้ำ
     supabase.table("memories").delete().eq("user_id", user_id).eq("question", question).execute()
     res = (supabase.table("memories")

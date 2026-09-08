@@ -14,6 +14,6 @@ Backend: api.vihokai.com
 - เพิ่ม CNAME: api -> your-backend.onrender.com
 
 .env อัปเดต:
-NEXT_PUBLIC_API_URL=https://api.vihokai.com/api
+NEXT_PUBLIC_API_URL=https://api.vihokai.com
 FRONTEND_URL=https://www.vihokai.com
 RESEND_FROM_EMAIL=ViHok AI <noreply@vihokai.com>

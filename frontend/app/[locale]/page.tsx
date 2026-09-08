@@ -598,6 +598,24 @@ const AI_TOOLS = [
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
+// ===== Timezone helpers: backend ส่ง UTC ISO → แสดงตาม timezone เครื่องผู้ใช้ =====
+function toLocalDate(isoDate?: string): Date | null {
+  if (!isoDate) return null
+  const d = new Date(isoDate)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+export function formatChatTime(isoDate?: string, locale = "th-TH"): string {
+  const d = toLocalDate(isoDate)
+  if (!d) return ""
+  return d.toLocaleString(locale, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
 function groupChatByDate(isoDate?: string): "today" | "yesterday" | "7days" {
   if (!isoDate) return "today"
   const time = new Date(isoDate).getTime()

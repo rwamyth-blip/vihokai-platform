@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 import os, jwt, httpx, json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from urllib.parse import urlencode
@@ -42,8 +42,8 @@ def create_jwt(user_id: str, email: str, name: str) -> str:
         "sub": user_id,
         "email": email,
         "name": name,
-        "iat": datetime.utcnow(),
-        "exp": datetime.utcnow() + timedelta(seconds=JWT_EXPIRY),
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=JWT_EXPIRY),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -138,7 +138,7 @@ def save_or_get_user(user_data: dict) -> dict:
         "name": user_data.get("name", email.split("@")[0]),
         "avatar": user_data.get("picture"),
         "provider": "google",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
     result = supabase.table("users").insert(new_user).execute()
     return result.data[0]
