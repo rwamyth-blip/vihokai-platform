@@ -22,6 +22,7 @@ export default function LibraryPage() {
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [translateTo, setTranslateTo] = useState("th")
 
   const [chat, setChat] = useState("")
   const [answer, setAnswer] = useState<any>(null)
@@ -35,7 +36,12 @@ export default function LibraryPage() {
       const res = await fetch(`${API_BASE}/library/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: query.trim(), limit: 12 }),
+        // แปล title+description อัตโนมัติตามภาษาหน้า (ปิดได้โดยเลือกต้นฉบับ)
+        body: JSON.stringify({
+          query: query.trim(),
+          limit: 12,
+          target_lang: translateTo === "orig" ? null : translateTo || locale,
+        }),
       })
       const data = await res.json()
       setResults(data.results || [])
@@ -119,6 +125,18 @@ export default function LibraryPage() {
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
             ค้นหา
           </button>
+          {/* เลือกภาษาคำแปล: ตามหน้าปัจจุบัน / ไทย / อังกฤษ / ต้นฉบับ */}
+          <select
+            value={translateTo}
+            onChange={(e) => setTranslateTo(e.target.value)}
+            title="ภาษาคำแปลผลลัพธ์"
+            className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1a1a1a] px-4 py-4 text-sm font-semibold outline-none"
+          >
+            <option value={locale}>แปล: ตามหน้านี้ ({locale})</option>
+            <option value="th">แปล: ไทย</option>
+            <option value="en">แปล: English</option>
+            <option value="orig">ต้นฉบับ (ไม่แปล)</option>
+          </select>
         </div>
 
         {/* Results */}
@@ -153,14 +171,20 @@ export default function LibraryPage() {
                         className="mb-3 h-40 w-full rounded-xl object-cover"
                       />
                     )}
-                    <h3 className="text-sm font-bold leading-snug">{r.title || "Untitled"}</h3>
+                    <h3 className="text-sm font-bold leading-snug">{r.title_translated || r.title || "Untitled"}</h3>
+                    {/* โชว์ชื่อต้นฉบับจางๆ เมื่อมีคำแปล */}
+                    {r.title_translated && r.title_translated !== r.title && (
+                      <p className="mt-0.5 text-[11px] italic text-slate-400 dark:text-white/30">
+                        {r.title}
+                      </p>
+                    )}
                     <p className="mt-1.5 text-[11px] text-slate-500 dark:text-white/40">
                       {(r.authors || []).slice(0, 3).join(", ")}
                       {r.year ? ` · ${r.year}` : ""}
                     </p>
-                    {(r.description || r.abstract) && (
+                    {(r.description_translated || r.description || r.abstract) && (
                       <p className="mt-2 line-clamp-3 text-[12px] text-slate-500 dark:text-white/50">
-                        {r.description || r.abstract}
+                        {r.description_translated || r.description || r.abstract}
                       </p>
                     )}
                     <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-100 dark:border-white/5">
