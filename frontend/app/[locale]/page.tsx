@@ -605,7 +605,7 @@ function toLocalDate(isoDate?: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-export function formatChatTime(isoDate?: string, locale = "th-TH"): string {
+function formatChatTime(isoDate?: string, locale = "th-TH"): string {
   const d = toLocalDate(isoDate)
   if (!d) return ""
   return d.toLocaleString(locale, {
