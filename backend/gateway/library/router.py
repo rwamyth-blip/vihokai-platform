@@ -7,10 +7,18 @@ from .providers.nasa import NASAProvider
 from .providers.google_books import GoogleBooksProvider
 from .providers.wikipedia import WikipediaProvider
 from .providers.internet_archive import InternetArchiveProvider
+from .providers.searxng import SearXNGProvider
+from .providers.firecrawl import FirecrawlProvider
+from .providers.local import LocalProvider
 
 class LibraryRouter:
     def __init__(self):
         self.providers_map = {
+            # 01 WEB SEARCH
+            "searxng": SearXNGProvider(),
+            # 02 LOCAL SEARCH (Qdrant index ตัวเอง)
+            "local": LocalProvider(),
+            # 03 LIBRARY SEARCH
             "openlibrary": OpenLibraryProvider(),
             "loc": LOCProvider(),
             "crossref": CrossrefProvider(),
@@ -18,6 +26,8 @@ class LibraryRouter:
             "google_books": GoogleBooksProvider(),
             "wikipedia": WikipediaProvider(),
             "internet_archive": InternetArchiveProvider(),
+            # 04 AI SEARCH (แบบไม่ใช้ key แยก — ใช้ key เดิมของระบบ)
+            "firecrawl": FirecrawlProvider(),
         }
         self.providers = list(self.providers_map.values())
 

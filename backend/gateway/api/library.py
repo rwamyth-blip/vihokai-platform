@@ -11,7 +11,7 @@ class SearchRequest(BaseModel):
     limit: int = Field(10, ge=1, le=50)
     sources: Optional[List[str]] = Field(
         None,
-        description="openlibrary, loc, crossref, nasa, google_books, wikipedia, internet_archive",
+        description="01 WEB: searxng | 02 LOCAL: local (Qdrant) | 03 LIBRARY: openlibrary, loc, crossref, nasa, google_books, wikipedia, internet_archive | 04 AI: firecrawl (ว่าง = QueryRouter จัดตาม MESH)",
     )
     enable_rerank: bool = True
     enable_dedup: bool = True
@@ -26,6 +26,24 @@ class IngestRequest(BaseModel):
 
 @router.post("/search")
 async def search_library(req: SearchRequest):
+    import asyncio as _asyncio
+    import hashlib as _hashlib
+    import time as _time
+
+    # L1: result cache แบบ vihok-search-v1 (in-memory + TTL 10 นาที)
+    # key ครอบ query+limit+sources+flags+lang กันชนข้ามเงื่อนไข
+    _rcache: dict = getattr(search_library, "_result_cache", None) or {}
+    setattr(search_library, "_result_cache", _rcache)
+
+    def _rkey() -> str:
+        raw = f"{req.query}|{req.limit}|{sorted(req.sources or [])}|{req.enable_rerank}|{req.enable_dedup}|{req.target_lang}"
+        return "res:" + _hashlib.md5(raw.encode()).hexdigest()
+
+    _rk = _rkey()
+    _hit = _rcache.get(_rk)
+    if _hit and (_time.time() - _hit["ts"]) < 600:
+        return {**_hit["payload"], "cached": True}
+
     norm = await search_library_facade(
         req.query,
         limit=req.limit,
@@ -33,14 +51,14 @@ async def search_library(req: SearchRequest):
         enable_rerank=req.enable_rerank,
         enable_dedup=req.enable_dedup,
     )
+    # L2: confidence routing แบบ search-first — score สูงพอส่งเลยไม่ต้องรอแปล
+    # (top BM25 score >= 5.0 ถือว่ามั่นใจ)
+    _top = max((d.get("score", 0) or 0 for d in norm), default=0)
     translated = False
+    # L3: แปลเฉพาะเมื่อจำเป็น — ข้ามข้อความที่เป็นภาษาเป้าหมายอยู่แล้ว
+    # (กัน Groq 429: แปลทีละ 3 รายการ OTPM limit 1000)
     if req.target_lang:
-        # แปล title+description ด้วย AI เดิม (translate.py) แบบขนาน
-        # ไม่มี googletrans dependency เพิ่ม — ใช้ provider เดิมของระบบ
-        # + cache in-memory (text:lang) กันแปลซ้ำเปลือง token
-        # + prompt แยก: title สั้นตรงตัว / description ธรรมชาติ
-        import asyncio as _asyncio
-        import hashlib as _hashlib
+        import re as _re
         from translate import SUPPORTED_LANGUAGES as _LANGS
         from translate import translate_with_ai as _translate_ai
 
@@ -48,22 +66,38 @@ async def search_library(req: SearchRequest):
         _tname = _lang_names.get(req.target_lang, req.target_lang)
         _cache: dict = getattr(search_library, "_tr_cache", None) or {}
         setattr(search_library, "_tr_cache", _cache)
-        # กัน Groq 429: แปลทีละ 3 รายการ (OTPM limit 1000)
         _sem = _asyncio.Semaphore(3)
 
         def _ck(text: str, lang: str, kind: str) -> str:
             h = _hashlib.md5(text.encode()).hexdigest()[:16]
             return f"{kind}:{lang}:{h}"
 
+        def _already_target(text: str, lang: str) -> bool:
+            # heuristic เบาๆ: th = มีอักษรไทยเกินครึ่ง, en = ascii เกือบทั้งหมด
+            if not text:
+                return True
+            if lang == "th":
+                th = len(_re.findall(r"[ก-๛]", text))
+                return th / max(len(text), 1) > 0.3
+            if lang == "en":
+                try:
+                    text.encode("ascii")
+                    return True
+                except UnicodeEncodeError:
+                    return False
+            return False
+
         async def _tr_cached(text: str, lang: str, kind: str) -> str:
             key = _ck(text, lang, kind)
             if key in _cache:
                 return _cache[key]
+            if _already_target(text, lang):
+                _cache[key] = text
+                return text
             async with _sem:
                 if kind == "title":
-                    prompt_src, prompt_tgt = "auto", lang
                     prompt_text = (
-                        f"Translate ONLY the following book/article title from {prompt_src} "
+                        "Translate ONLY the following book/article title from auto "
                         f"to {_tname} ({lang}). Return ONLY the translated title, "
                         f"no explanation, no quotes.\n\nTitle: {text}"
                     )
@@ -101,11 +135,17 @@ async def search_library(req: SearchRequest):
 
         norm = list(await _asyncio.gather(*(_tr(d) for d in norm)))
         translated = True
+    payload = {"query": req.query, "count": len(norm), "results": norm, "translated": translated}
+    # เก็บ cache (TTL 10 นาที) — รอบซ้ำไม่ต้องค้น+แปลใหม่
+    if len(_rcache) > 500:
+        for k in list(_rcache)[:250]:
+            _rcache.pop(k, None)
+    _rcache[_rk] = {"ts": _time.time(), "payload": payload}
     # log
     try:
         SearchLogRepository().log(req.query, len(norm))
     except: pass
-    return {"query": req.query, "count": len(norm), "results": norm, "translated": translated}
+    return payload
 
 @router.get("/search")
 async def search_library_get(
@@ -127,7 +167,15 @@ async def ingest_to_rag(req: IngestRequest):
 @router.get("/providers")
 def list_providers():
     return {
-        "v1": ["openlibrary", "loc", "crossref", "nasa", "google_books", "wikipedia", "internet_archive"],
-        "v2_planned": ["worldcat", "europeana", "hathitrust", "dpla", "openalex", "pubmed", "arxiv"],
+        "mesh": {
+            "01_web": ["searxng"],
+            "02_local": ["local (Qdrant index ตัวเอง)"],
+            "03_library": ["openlibrary", "loc", "crossref", "nasa", "google_books", "wikipedia", "internet_archive"],
+            "04_ai": ["firecrawl", "exa/serper/brave (ผ่าน chat_service)"],
+            "05_llm": ["groq", "gemini", "openai", "deepseek", "kimi", "claude", "meta_llama"],
+            "06_rag_agents": ["research_agent", "judge_agent", "image_agent", "multi_ai_rag"],
+        },
+        "v1": ["local", "searxng", "openlibrary", "loc", "crossref", "nasa", "google_books", "wikipedia", "internet_archive", "firecrawl"],
+        "v2_planned": ["worldcat", "europeana", "hathitrust", "dpla", "openalex", "pubmed", "arxiv", "opensearch"],
         "v3_planned": ["esa", "semantic_scholar"]
     }

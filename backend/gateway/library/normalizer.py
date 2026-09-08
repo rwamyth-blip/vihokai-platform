@@ -7,8 +7,13 @@ from .providers.nasa import NASAProvider
 from .providers.google_books import GoogleBooksProvider
 from .providers.wikipedia import WikipediaProvider
 from .providers.internet_archive import InternetArchiveProvider
+from .providers.searxng import SearXNGProvider
+from .providers.firecrawl import FirecrawlProvider
+from .providers.local import LocalProvider
 
 _provider_normalizers = {
+    "searxng": SearXNGProvider(),
+    "local": LocalProvider(),
     "openlibrary": OpenLibraryProvider(),
     "loc": LOCProvider(),
     "crossref": CrossrefProvider(),
@@ -16,6 +21,7 @@ _provider_normalizers = {
     "google_books": GoogleBooksProvider(),
     "wikipedia": WikipediaProvider(),
     "internet_archive": InternetArchiveProvider(),
+    "firecrawl": FirecrawlProvider(),
 }
 
 def normalize_results(raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

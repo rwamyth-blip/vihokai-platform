@@ -10,6 +10,7 @@ import {
   Loader2,
   ExternalLink,
 } from "lucide-react"
+import { fontForLocale, libCopyForLocale } from "@/components/locale"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
@@ -17,6 +18,9 @@ export default function LibraryPage() {
   const router = useRouter()
   const params = useParams()
   const locale = Array.isArray(params?.locale) ? params.locale[0] : (params?.locale as string) || "th"
+  // ข้อความ + ฟอนต์ตามภาษาหน้า main (th/en/ja/zh/ko, อื่น fallback en)
+  const lc = libCopyForLocale(locale)
+  const fontFamily = fontForLocale(locale)
 
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<any[]>([])
@@ -67,14 +71,18 @@ export default function LibraryPage() {
       setAnswer(data)
     } catch (e) {
       console.error("RAG chat error:", e)
-      setAnswer({ answer: "❌ ไม่สามารถเชื่อมต่อ AI ได้ในขณะนี้" })
+      setAnswer({ answer: lc.disconnected })
     } finally {
       setAsking(false)
     }
   }
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] dark:bg-[#0f0f0f] text-slate-800 dark:text-white">
+    <main
+      className="min-h-screen bg-[#f8fafc] dark:bg-[#0f0f0f] text-slate-800 dark:text-white"
+      style={{ fontFamily }}
+      lang={locale}
+    >
       <div className="mx-auto max-w-[1000px] px-5 py-8">
         {/* Header */}
         <header className="flex items-center justify-between">
@@ -83,7 +91,7 @@ export default function LibraryPage() {
             className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-white/10 px-4 py-2.5 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-white/5 transition"
           >
             <ArrowLeft size={18} />
-            กลับไปแชท
+            {lc.back}
           </button>
 
           <div className="flex items-center gap-3">
@@ -95,14 +103,14 @@ export default function LibraryPage() {
                 VihokAI <span className="text-blue-600 dark:text-blue-400">Global Library</span>
               </h1>
               <p className="text-[11px] text-slate-400 dark:text-white/40">
-                Gateway V1 — ค้นหนังสือ/งานวิจัย/สื่อจากห้องสมุดทั่วโลก
+                {lc.subtitle}
               </p>
             </div>
           </div>
         </header>
 
         <p className="mt-4 text-[12px] text-slate-400 dark:text-white/30">
-          Open Library + Library of Congress + Crossref + NASA → AI สรุปจาก Context (Python เป็นตัวกลางสืบค้น)
+          {lc.sourcesLine}
         </p>
 
         {/* Search */}
@@ -113,7 +121,7 @@ export default function LibraryPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && search()}
-              placeholder="ค้นหนังสือ, งานวิจัย, ภาพถ่าย... เช่น artificial intelligence"
+              placeholder={lc.searchPlaceholder}
               className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400 dark:placeholder:text-white/30"
             />
           </div>
@@ -123,19 +131,19 @@ export default function LibraryPage() {
             className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-blue-200 dark:shadow-none transition hover:opacity-90 disabled:opacity-50"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
-            ค้นหา
+            {lc.searchBtn}
           </button>
           {/* เลือกภาษาคำแปล: ตามหน้าปัจจุบัน / ไทย / อังกฤษ / ต้นฉบับ */}
           <select
             value={translateTo}
             onChange={(e) => setTranslateTo(e.target.value)}
-            title="ภาษาคำแปลผลลัพธ์"
+            title={lc.translateLabel}
             className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#1a1a1a] px-4 py-4 text-sm font-semibold outline-none"
           >
-            <option value={locale}>แปล: ตามหน้านี้ ({locale})</option>
-            <option value="th">แปล: ไทย</option>
-            <option value="en">แปล: English</option>
-            <option value="orig">ต้นฉบับ (ไม่แปล)</option>
+            <option value={locale}>{lc.optFollow(locale)}</option>
+            <option value="th">{lc.optTh}</option>
+            <option value="en">{lc.optEn}</option>
+            <option value="orig">{lc.optOrig}</option>
           </select>
         </div>
 
@@ -145,17 +153,17 @@ export default function LibraryPage() {
             <div className="mb-4 flex items-center gap-2">
               <div className="h-5 w-1 rounded-full bg-blue-500" />
               <h2 className="font-bold">
-                ผลลัพธ์ <span className="text-blue-600 dark:text-blue-400">{results.length}</span> รายการ
+                {lc.results} <span className="text-blue-600 dark:text-blue-400">{results.length}</span> {lc.items}
               </h2>
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center gap-2 py-20 text-slate-400 dark:text-white/30">
-                <Loader2 size={20} className="animate-spin" /> กำลังค้นหา...
+                <Loader2 size={20} className="animate-spin" /> {lc.searching}
               </div>
             ) : results.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 dark:border-white/10 py-16 text-center text-slate-400 dark:text-white/30">
-                ไม่พบผลลัพธ์ — ลองค้นหาด้วยคำอื่น
+                {lc.empty}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -216,9 +224,9 @@ export default function LibraryPage() {
               <Bot size={18} />
             </div>
             <div>
-              <h2 className="font-bold">ถาม AI จาก Global Library</h2>
+              <h2 className="font-bold">{lc.askTitle}</h2>
               <p className="text-[11px] text-slate-400 dark:text-white/40">
-                Python ค้นห้องสมุดให้ก่อน แล้ว AI สรุปจากข้อมูลจริง
+                {lc.askSub}
               </p>
             </div>
           </div>
@@ -228,7 +236,7 @@ export default function LibraryPage() {
               value={chat}
               onChange={(e) => setChat(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && ask()}
-              placeholder="เช่น อธิบายทฤษฎีหลุมดำให้เข้าใจง่าย..."
+              placeholder={lc.askPlaceholder}
               className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#2f2f2f] px-4 py-3 text-sm outline-none focus:border-blue-400"
             />
             <button
@@ -237,7 +245,7 @@ export default function LibraryPage() {
               className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
             >
               {asking ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
-              ถาม
+              {lc.askBtn}
             </button>
           </div>
 
@@ -247,7 +255,7 @@ export default function LibraryPage() {
               {answer.citations && answer.citations.length > 0 && (
                 <>
                   <hr className="my-4 border-slate-200 dark:border-white/10" />
-                  <p className="mb-2 text-xs font-bold">📚 แหล่งอ้างอิง</p>
+                  <p className="mb-2 text-xs font-bold">{lc.refs}</p>
                   <ul className="space-y-1.5">
                     {answer.citations.map((c: any, i: number) => (
                       <li key={i} className="text-[12px] text-slate-600 dark:text-white/60">

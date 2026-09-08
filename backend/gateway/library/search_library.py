@@ -11,6 +11,7 @@ from .router import LibraryRouter
 from .normalizer import normalize_results
 from .deduplicator import deduplicate
 from .ranking import rank_results
+from .query_router import route as mesh_route
 
 
 async def search_library(
@@ -20,8 +21,11 @@ async def search_library(
     enable_rerank: bool = True,
     enable_dedup: bool = True,
 ) -> List[Dict[str, Any]]:
+    # ถ้าไม่ระบุ sources ใช้ QueryRouter จัดลำดับตาม MESH
+    # (01 WEB → 03 LIBRARY → 04 AI)
+    ordered = sources or mesh_route(query)
     router = LibraryRouter()
-    raw = await router.search(query, limit=limit, sources=sources)
+    raw = await router.search(query, limit=limit, sources=ordered)
     norm = normalize_results(raw)
     if enable_dedup:
         norm = deduplicate(norm)

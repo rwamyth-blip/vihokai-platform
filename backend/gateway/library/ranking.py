@@ -16,15 +16,22 @@ def rank_results(docs: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]
     bm25 = BM25Okapi(corpus)
     scores = bm25.get_scores(_tokenize(query))
     
-    # Boost by source credibility and recency
+    # Boost by source credibility and recency (ตามลำดับ MESH)
     source_weights = {
+        # 01 WEB
+        "searxng": 1.2,
+        # 02 LOCAL (index ตัวเอง — ให้สูงสุดเพราะคัดมาแล้ว)
+        "local": 1.5,
+        # 03 LIBRARY
         "crossref": 1.2,
         "openlibrary": 1.0,
         "loc": 1.1,
         "nasa": 0.9,
         "google_books": 1.0,
-        "wikipedia": 0.9,
+        "wikipedia": 1.1,
         "internet_archive": 0.9,
+        # 04 AI
+        "firecrawl": 1.1,
     }
     for i, d in enumerate(docs):
         src = d.get("source","")
