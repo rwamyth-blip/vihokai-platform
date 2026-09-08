@@ -48,6 +48,8 @@ async def search_library(req: SearchRequest):
         _tname = _lang_names.get(req.target_lang, req.target_lang)
         _cache: dict = getattr(search_library, "_tr_cache", None) or {}
         setattr(search_library, "_tr_cache", _cache)
+        # กัน Groq 429: แปลทีละ 3 รายการ (OTPM limit 1000)
+        _sem = _asyncio.Semaphore(3)
 
         def _ck(text: str, lang: str, kind: str) -> str:
             h = _hashlib.md5(text.encode()).hexdigest()[:16]
@@ -57,34 +59,35 @@ async def search_library(req: SearchRequest):
             key = _ck(text, lang, kind)
             if key in _cache:
                 return _cache[key]
-            if kind == "title":
-                prompt_src, prompt_tgt = "auto", lang
-                prompt_text = (
-                    f"Translate ONLY the following book/article title from {prompt_src} "
-                    f"to {_tname} ({lang}). Return ONLY the translated title, "
-                    f"no explanation, no quotes.\n\nTitle: {text}"
-                )
-            else:
-                prompt_text = text
-            try:
+            async with _sem:
                 if kind == "title":
-                    out = await _translate_ai(prompt_text, "auto", lang)
+                    prompt_src, prompt_tgt = "auto", lang
+                    prompt_text = (
+                        f"Translate ONLY the following book/article title from {prompt_src} "
+                        f"to {_tname} ({lang}). Return ONLY the translated title, "
+                        f"no explanation, no quotes.\n\nTitle: {text}"
+                    )
                 else:
-                    from translate import translate_text_async as _translate
-                    out = await _translate(text[:800], lang)
-            except Exception:
-                out = text
-            out = (out or text).strip()
-            # กัน AI อธิบายยาวสำหรับ title: ตัดบรรทัดแรกถ้ายาวเกิน 3x
-            if kind == "title":
-                first = out.split("\n")[0].strip()
-                if len(first) < len(out) and len(out) > len(text) * 3:
-                    out = first
-            if len(_cache) > 2000:  # กัน memory บวม: ล้างครึ่งเก่า
-                for k in list(_cache)[:1000]:
-                    _cache.pop(k, None)
-            _cache[key] = out
-            return out
+                    prompt_text = text
+                try:
+                    if kind == "title":
+                        out = await _translate_ai(prompt_text, "auto", lang)
+                    else:
+                        from translate import translate_text_async as _translate
+                        out = await _translate(text[:800], lang)
+                except Exception:
+                    out = text
+                out = (out or text).strip()
+                # กัน AI อธิบายยาวสำหรับ title: ตัดบรรทัดแรกถ้ายาวเกิน 3x
+                if kind == "title":
+                    first = out.split("\n")[0].strip()
+                    if len(first) < len(out) and len(out) > len(text) * 3:
+                        out = first
+                if len(_cache) > 2000:  # กัน memory บวม: ล้างครึ่งเก่า
+                    for k in list(_cache)[:1000]:
+                        _cache.pop(k, None)
+                _cache[key] = out
+                return out
 
         async def _tr(doc: dict) -> dict:
             out = dict(doc)

@@ -8,8 +8,10 @@ class GeminiProvider(BaseProvider):
         
         genai.configure(api_key=api_key)
         
-        # ใช้โมเดลจาก .env (มี models/ prefix แล้ว)
-        model_name = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")
+        # ใช้โมเดลจาก .env (รองรับทั้งมี/ไม่มี models/ prefix)
+        model_name = (os.getenv("GEMINI_MODEL", "models/gemini-3.1-flash-lite") or "").strip()
+        if model_name.startswith("models/"):
+            model_name = model_name[len("models/"):]
         self.model = genai.GenerativeModel(model_name)
         self.is_dev_mode = "dummy" in api_key
 

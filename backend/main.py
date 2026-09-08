@@ -187,7 +187,10 @@ async def call_gemini(prompt: str, locale: str, name: str = None, system_prompt:
             return None
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-3.6-flash")
+        _gm = (os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite") or "").strip()
+        if _gm.startswith("models/"):
+            _gm = _gm[len("models/"):]
+        model = genai.GenerativeModel(_gm)
         mem_text = f"ผู้ใช้ชื่อ {name}. " if name else ""
         
         language_name = get_language_name(locale)
@@ -205,7 +208,10 @@ async def call_gemini(prompt: str, locale: str, name: str = None, system_prompt:
         try:
             import google.generativeai as genai
             genai.configure(api_key=GEMINI_API_KEY)
-            model = genai.GenerativeModel("gemini-3.1-pro-preview")
+            _gfb = (os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.1-pro-preview") or "").strip()
+            if _gfb.startswith("models/"):
+                _gfb = _gfb[len("models/"):]
+            model = genai.GenerativeModel(_gfb)
             mem_text = f"ผู้ใช้ชื่อ {name}. " if name else ""
             full_prompt = f"""{mem_text}
 {system_prompt if system_prompt else ''}
