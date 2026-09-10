@@ -26,7 +26,8 @@ export default function LibraryPage() {
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
-  const [translateTo, setTranslateTo] = useState("th")
+  // Default: English/international (หน้าสากล)
+  const [translateTo, setTranslateTo] = useState("en")
 
   const [chat, setChat] = useState("")
   const [answer, setAnswer] = useState<any>(null)
@@ -65,7 +66,7 @@ export default function LibraryPage() {
       const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: chat.trim(), use_library: true, top_k: 6 }),
+        body: JSON.stringify({ message: chat.trim(), use_library: true, top_k: 50 }),
       })
       const data = await res.json()
       setAnswer(data)
@@ -255,8 +256,8 @@ export default function LibraryPage() {
               {answer.citations && answer.citations.length > 0 && (
                 <>
                   <hr className="my-4 border-slate-200 dark:border-white/10" />
-                  <p className="mb-2 text-xs font-bold">{lc.refs}</p>
-                  <ul className="space-y-1.5">
+                  <p className="mb-2 text-xs font-bold">{lc.refs} ({answer.citations.length})</p>
+                  <ul className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
                     {answer.citations.map((c: any, i: number) => (
                       <li key={i} className="text-[12px] text-slate-600 dark:text-white/60">
                         • {c.title}
