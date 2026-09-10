@@ -19,12 +19,12 @@ class MetaAIProvider:
             os.getenv("META_AI_MODEL")
             or os.getenv("GROQ_MODEL")
             or os.getenv("GROQ_AI_MODEL")
-            or "qwen/qwen3.8-27b"
+            or "openai/gpt-oss-120b"
         )
         # กันค่า model ที่ไม่ใช่ model id จริง (เช่น ชื่อผลิตภัณฑ์ที่มีช่องว่าง)
         if " " in self.model:
             logger.warning(f"META_AI_MODEL '{self.model}' is not a valid model id — using default")
-            self.model = "qwen/qwen3.8-27b"
+            self.model = "openai/gpt-oss-120b"
         
         # ตรวจสอบว่าใช้โหมด dev หรือไม่
         self.is_dev_mode = "dummy" in self.client.api_key

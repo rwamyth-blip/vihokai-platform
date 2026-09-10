@@ -9,7 +9,7 @@ from typing import List, Dict, Optional
 # OpenAI-compatible providers — ใช้ openai SDK ตัวเดียวเรียกได้หลายเจ้า
 PROVIDERS = [
     {"name": "openai",   "key": "OPENAI_API_KEY",    "base_url": None,                               "model": "gpt-4o-mini"},
-    {"name": "groq",     "key": "GROQ_API_KEY",      "base_url": "https://api.groq.com/openai/v1",   "model": "qwen/qwen3.8-27b"},
+    {"name": "groq",     "key": "GROQ_API_KEY",      "base_url": "https://api.groq.com/openai/v1",   "model": "openai/gpt-oss-120b"},
     {"name": "deepseek", "key": "DEEPSEEK_API_KEY",  "base_url": "https://api.deepseek.com/v1",      "model": "deepseek-chat"},
     {"name": "kimi",     "key": "KIMI_API_KEY",      "base_url": "https://api.moonshot.ai/v1",       "model": "kimi-k3"},
 ]
