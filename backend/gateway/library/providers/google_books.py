@@ -8,6 +8,10 @@ class GoogleBooksProvider(LibraryProvider):
     BASE_URL = "https://www.googleapis.com/books/v1/volumes"
 
     def __init__(self):
+        import os
+        # ไม่มี key = โควต้า anonymous ต่ำมาก (มักเจอ 429)
+        # ใส่ GOOGLE_BOOKS_API_KEY เพื่อเพิ่มโควต้าฟรี (Google Cloud Console)
+        self.api_key = os.getenv("GOOGLE_BOOKS_API_KEY", "").strip()
         self.headers = {
             "User-Agent": "VihokAI/1.0 (contact@vihokai.com)",
             "Accept": "application/json",
@@ -15,8 +19,13 @@ class GoogleBooksProvider(LibraryProvider):
 
     async def search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         params = {"q": query, "maxResults": min(limit, 40)}
+        if self.api_key:
+            params["key"] = self.api_key
         async with httpx.AsyncClient() as client:
             r = await client.get(self.BASE_URL, params=params, headers=self.headers, timeout=20)
+            if r.status_code == 429:
+                print("[google_books] rate limited (429) — ตั้ง GOOGLE_BOOKS_API_KEY เพื่อเพิ่มโควต้า")
+                return []
             r.raise_for_status()
             data = r.json()
         results = []
