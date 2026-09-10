@@ -590,7 +590,7 @@ const AI_MODELS = [
   { id: "gemini", name: "Gemini", desc: "Balanced", icon: "✦", color: "text-blue-500", engine: "gemini-3.1-flash-lite" },
   { id: "deepseek", name: "DeepSeek", desc: "Reasoning", icon: "◈", color: "text-blue-600", engine: "deepseek-v4-flash" },
   { id: "kimi", name: "Kimi", desc: "Creative", icon: "∞", color: "text-purple-500", engine: "kimi-k3" },
-  { id: "meta_ai", name: "Groq", desc: "Fast", icon: "⚡", color: "text-green-500", engine: "gpt-oss-120b" },
+  { id: "meta_ai", name: "Meta AI", desc: "Fast · by Meta", icon: "◍", color: "text-sky-500", engine: "gpt-oss-120b", badge: "NEW" },
   { id: "claude", name: "Claude", desc: "Analytical", icon: "✦", color: "text-red-500", engine: "claude-4" },
 ]
 
@@ -1015,7 +1015,7 @@ export default function Page() {
           gemini: "Gemini",
           deepseek: "DeepSeek",
           kimi: "Kimi",
-          meta_ai: "Groq",
+          meta_ai: "Meta AI",
           claude: "Claude",
         }
         for (const [key, value] of Object.entries(data.all_answers)) {
@@ -1441,7 +1441,14 @@ export default function Page() {
                 >
                   <div className={`text-xl font-bold ${model.color}`}>{model.icon}</div>
                   <div>
-                    <p className="text-sm font-semibold">{model.name}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-semibold">
+                      {model.name}
+                      {(model as any).badge && (
+                        <span className="rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-1.5 py-px text-[9px] font-bold text-white">
+                          {(model as any).badge}
+                        </span>
+                      )}
+                    </p>
                     <p className="text-[11px] text-slate-400 dark:text-white/40">{model.desc}</p>
                     <p className="text-[10px] font-mono text-slate-400/70 dark:text-white/25">{model.engine}</p>
                   </div>
