@@ -123,17 +123,19 @@ async def search_library(req: SearchRequest):
                 _cache[key] = out
                 return out
 
-        async def _tr(doc: dict) -> dict:
-            out = dict(doc)
+        async def _tr_inplace(doc: dict) -> None:
             title = (doc.get("title") or "").strip()
             desc = (doc.get("description") or doc.get("abstract") or "").strip()
-            if title:
-                out["title_translated"] = await _tr_cached(title, req.target_lang, "title")
-            if desc:
-                out["description_translated"] = await _tr_cached(desc, req.target_lang, "desc")
-            return out
+            if title and "title_translated" not in doc:
+                doc["title_translated"] = await _tr_cached(title, req.target_lang, "title")
+            if desc and "description_translated" not in doc:
+                doc["description_translated"] = await _tr_cached(desc, req.target_lang, "desc")
 
-        norm = list(await _asyncio.gather(*(_tr(d) for d in norm)))
+        # แปลเฉพาะผล Top-N ตาม BM25 score (กัน timeout/429 จากการแปลทั้งกอง)
+        import os as _os
+        _tr_limit = max(1, int(_os.getenv("SEARCH_TRANSLATE_LIMIT", "12")))
+        _subset = sorted(norm, key=lambda d: d.get("score", 0) or 0, reverse=True)[:_tr_limit]
+        await _asyncio.gather(*(_tr_inplace(d) for d in _subset))
         translated = True
     payload = {"query": req.query, "count": len(norm), "results": norm, "translated": translated}
     # เก็บ cache (TTL 10 นาที) — รอบซ้ำไม่ต้องค้น+แปลใหม่
