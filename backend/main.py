@@ -188,8 +188,12 @@ async def call_groq(prompt: str, locale: str, name: str = None, system_prompt: s
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": full_prompt})
         
+        # META_AI_MODEL ไม่ใช่ model id จริง (ชื่อผลิตภัณฑ์) -> ข้าม ใช้ GROQ_MODEL > GROQ_AI_MODEL
+        _gm = (os.getenv("GROQ_MODEL") or os.getenv("GROQ_AI_MODEL") or "openai/gpt-oss-120b").strip()
+        if " " in _gm:
+            _gm = "openai/gpt-oss-120b"
         response = await client.chat.completions.create(
-            model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
+            model=_gm,
             messages=messages,
             max_tokens=600,
             temperature=0.6
