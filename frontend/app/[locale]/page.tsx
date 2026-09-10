@@ -583,14 +583,15 @@ type Message = { role: string; content: string; id: string }
 type ChatItem = { id: string; title: string; group: string; messages: Message[] }
 
 // ===== AI Models =====
+// engine = ชื่อโมเดลจริงบน backend (อ้างอิง META_AI_MODEL/GROQ_MODEL/OPENAI_MODEL/DEEPSEEK_MODEL/KIMI_MODEL)
 const AI_MODELS = [
-  { id: "auto", name: "Auto", desc: "Smart Selection", icon: "◉", color: "text-orange-500" },
-  { id: "chatgpt", name: "ChatGPT", desc: "Smart & Fast", icon: "◉", color: "text-orange-500" },
-  { id: "gemini", name: "Gemini", desc: "Balanced", icon: "✦", color: "text-blue-500" },
-  { id: "deepseek", name: "DeepSeek", desc: "Reasoning", icon: "◈", color: "text-blue-600" },
-  { id: "kimi", name: "Kimi", desc: "Creative", icon: "∞", color: "text-purple-500" },
-  { id: "meta_ai", name: "Groq", desc: "Fast", icon: "⚡", color: "text-green-500" },
-  { id: "claude", name: "Claude", desc: "Analytical", icon: "✦", color: "text-red-500" },
+  { id: "auto", name: "Auto", desc: "Smart Selection", icon: "◉", color: "text-orange-500", engine: "gpt-oss-120b · gpt-5-nano" },
+  { id: "chatgpt", name: "ChatGPT", desc: "Smart & Fast", icon: "◉", color: "text-orange-500", engine: "gpt-5-nano" },
+  { id: "gemini", name: "Gemini", desc: "Balanced", icon: "✦", color: "text-blue-500", engine: "gemini-3.1-flash-lite" },
+  { id: "deepseek", name: "DeepSeek", desc: "Reasoning", icon: "◈", color: "text-blue-600", engine: "deepseek-v4-flash" },
+  { id: "kimi", name: "Kimi", desc: "Creative", icon: "∞", color: "text-purple-500", engine: "kimi-k3" },
+  { id: "meta_ai", name: "Groq", desc: "Fast", icon: "⚡", color: "text-green-500", engine: "gpt-oss-120b" },
+  { id: "claude", name: "Claude", desc: "Analytical", icon: "✦", color: "text-red-500", engine: "claude-4" },
 ]
 
 // ===== AI Tools =====
@@ -1442,6 +1443,7 @@ export default function Page() {
                   <div>
                     <p className="text-sm font-semibold">{model.name}</p>
                     <p className="text-[11px] text-slate-400 dark:text-white/40">{model.desc}</p>
+                    <p className="text-[10px] font-mono text-slate-400/70 dark:text-white/25">{model.engine}</p>
                   </div>
                   {selectedAI === model.id && (
                     <div className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white">✓</div>
@@ -1469,6 +1471,11 @@ export default function Page() {
                     <p className="text-sm font-bold">{t.assistantName}</p>
                     <p className="text-[11px] text-green-500">
                       ● {t.online} · {AI_MODELS.find(m => m.id === selectedAI)?.name || selectedAI}
+                      {AI_MODELS.find(m => m.id === selectedAI)?.engine && (
+                        <span className="ml-1 font-mono text-[10px] text-slate-400 dark:text-white/35">
+                          ({AI_MODELS.find(m => m.id === selectedAI)?.engine})
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
