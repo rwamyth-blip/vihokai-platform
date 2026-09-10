@@ -10,6 +10,7 @@ from .providers.internet_archive import InternetArchiveProvider
 from .providers.searxng import SearXNGProvider
 from .providers.firecrawl import FirecrawlProvider
 from .providers.local import LocalProvider
+from .query_expansion import expand_query_async, provider_queries
 
 class LibraryRouter:
     def __init__(self):
@@ -35,12 +36,21 @@ class LibraryRouter:
         selected = self.providers
         if sources:
             selected = [self.providers_map[s] for s in sources if s in self.providers_map]
-        
-        tasks = [p.search(query, limit) for p in selected]
+
+        # Query expansion — แก้ปัญหา "พิมพ์ไทย → API อังกฤษคืน 0 ผลลัพธ์"
+        variants = await expand_query_async(query)
+
+        pairs = []
+        tasks = []
+        for provider in selected:
+            for q in provider_queries(query, provider.name, variants):
+                pairs.append((provider, q))
+                tasks.append(provider.search(q, limit))
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         combined = []
-        for provider, res in zip(selected, results):
+        for (provider, _query), res in zip(pairs, results):
             if isinstance(res, Exception):
                 print(f"[{provider.name}] error: {res}")
                 continue
