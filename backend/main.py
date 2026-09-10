@@ -42,6 +42,11 @@ from auth import current_user_id, verify_jwt
 from gateway.api import library as gateway_library
 from gateway.api import chat as gateway_chat
 
+# ✅ Import AI Agents routers (Research / Image / Orchestrator + Judge)
+from api import research as research_api
+from api import image as image_api
+from api import chat as ai_chat_api
+
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 app = FastAPI(title="Vihok AI v4 - Fast Version + Commands + Translate", version="5.0")
@@ -86,6 +91,11 @@ app.include_router(password_reset_router)
 # ✅ Global Library Gateway routers (Library Search + RAG Chat)
 app.include_router(gateway_library.router)
 app.include_router(gateway_chat.router)
+
+# ✅ AI Agents routers
+app.include_router(research_api.router)               # POST /research        (Research Agent)
+app.include_router(image_api.router)                  # POST /image/generate  (Image Agent)
+app.include_router(ai_chat_api.router, prefix="/ai")  # POST /ai/chat         (Orchestrator + Judge)
 
 # ===== ตรวจสอบ API Keys =====
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
