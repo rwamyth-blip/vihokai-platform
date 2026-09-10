@@ -201,8 +201,14 @@ def _vihokai_base_url() -> str:
     )
 
 
+def _is_reasoning_model(model: str) -> bool:
+    """GPT-5 / o-series เป็น reasoning model — ห้ามส่ง temperature/max_tokens"""
+    m = (model or "").lower()
+    return m.startswith("gpt-5") or m.startswith("o1") or m.startswith("o3") or m.startswith("o4")
+
+
 async def _call_groq_model(model: str, prompt: str, locale: str, name: str = None, system_prompt: str = None, api_key: str | None = None, base_url: str | None = None) -> str | None:
-    """เรียก Groq-compatible API ด้วย model ที่ระบุ — ใช้ร่วมกันระหว่าง call_groq / call_vihokai"""
+    """เรียก Groq/OpenAI-compatible API ด้วย model ที่ระบุ — ใช้ร่วมกันระหว่าง call_groq / call_vihokai"""
     key = api_key or GROQ_API_KEY
     if not key:
         return None
@@ -224,11 +230,16 @@ async def _call_groq_model(model: str, prompt: str, locale: str, name: str = Non
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": full_prompt})
 
+    # reasoning models (GPT-5/o-series): ใช้ max_completion_tokens + reasoning_effort แทน
+    kwargs = (
+        {"max_completion_tokens": 2000, "reasoning_effort": "minimal"}
+        if _is_reasoning_model(model)
+        else {"max_tokens": 600, "temperature": 0.6}
+    )
     response = await client.chat.completions.create(
         model=model,
         messages=messages,
-        max_tokens=600,
-        temperature=0.6
+        **kwargs
     )
     return response.choices[0].message.content
 
