@@ -165,20 +165,51 @@ def get_language_name(locale: str) -> str:
     return LANGUAGE_NAMES.get(normalized_locale, normalized_locale)
 
 # ===== AI Providers (สมดุล: เร็วพอ + ตอบปานกลาง) =====
-# Qwen3.8-27B เป็น Siri ของระบบ: ฉลาดรอบรู้ 3 วิชา (จีน เทคโนโลยี ธุรกิจ) + เงียบว่องไว 3 วิ!
-# - VIhoz AI จะดึงพลังของ Qwen3.8-27B มาใช้ เพราะ Qwen3.8-27B ตอบหมายถึง ฟุตบอลทีมชาติไทย!
-# - เพิ่ม Qwen3.6-27B เป็น Siri สำรอง เผื่อ Qwen3.8-27B ตอบช้าหรือติดขัด!
-VIHOKAI_MODELS = ["qwen/qwen3.8-27b", "qwen/qwen3.6-27b"]
+# VihokAI 1.0 Siri — อ่านรุ่นจาก env: VIHOK_AI_MODEL (รองรับชื่อเก่า VIHOKAI_MODEL ด้วย)
+# คั่นหลายรุ่นด้วย comma ได้ เช่น "qwen/qwen3.8-27b, qwen/qwen3.6-27b" (ลองทีละตัวจนกว่าจะตอบได้)
+# คีย์: VIHOK_API_KEY (ว่างได้ -> fallback GROQ_API_KEY), base: VIHOK_BASE_URL (ว่างได้ -> GROQ_BASE_URL)
+def _vihokai_models() -> list:
+    raw = (
+        os.getenv("VIHOK_AI_MODEL")
+        or os.getenv("VIHOKAI_MODEL")
+        or "openai/gpt-oss-120b"
+    )
+    models = [m.strip() for m in raw.split(",") if m.strip()]
+    return [m for m in models if " " not in m] or ["openai/gpt-oss-120b"]
 
 
-async def _call_groq_model(model: str, prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
-    """เรียก Groq ด้วย model ที่ระบุ — ใช้ร่วมกันระหว่าง call_groq / call_vihokai"""
-    if not GROQ_API_KEY:
+def _vihokai_key() -> str | None:
+    # ลอง VIHOK_API_KEY ก่อน — ถ้า 401 ค่อยตกไป GROQ_API_KEY (กันคีย์คนละระบบ)
+    for env_name in ("VIHOK_API_KEY", "VIHOKAI_API_KEY", "GROQ_API_KEY"):
+        key = (os.getenv(env_name) or "").strip()
+        if not key:
+            continue
+        # Groq-compatible keys ขึ้นต้น gsk_ — คีย์รูปแบบอื่น (เช่น LLM_...) ใช้กับ Groq ไม่ได้ ข้ามเลย
+        base = _vihokai_base_url()
+        if "groq.com" in base and not key.startswith("gsk_"):
+            print(f"⚠️ {env_name} ไม่ใช่ Groq key (ข้าม -> ตัวถัดไป)")
+            continue
+        return key
+    return None
+
+
+def _vihokai_base_url() -> str:
+    return (
+        os.getenv("VIHOK_BASE_URL")
+        or os.getenv("VIHOKAI_BASE_URL")
+        or os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+    )
+
+
+async def _call_groq_model(model: str, prompt: str, locale: str, name: str = None, system_prompt: str = None, api_key: str | None = None, base_url: str | None = None) -> str | None:
+    """เรียก Groq-compatible API ด้วย model ที่ระบุ — ใช้ร่วมกันระหว่าง call_groq / call_vihokai"""
+    key = api_key or GROQ_API_KEY
+    if not key:
         return None
     from openai import AsyncOpenAI
     client = AsyncOpenAI(
-        api_key=GROQ_API_KEY,
-        base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+        api_key=key,
+        base_url=base_url or os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     )
     mem_text = f"จำไว้: ผู้ใช้ชื่อ {name}" if name else ""
 
@@ -203,11 +234,15 @@ async def _call_groq_model(model: str, prompt: str, locale: str, name: str = Non
 
 
 async def call_vihokai(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
-    """VihokAI 1.0 Siri — Qwen3.8-27B ตัวหลัก, Qwen3.6-27B สำรอง (เรียกผ่าน Groq)"""
+    """VihokAI 1.0 Siri — รุ่น/คีย์อ่านจาก env: VIHOK_AI_MODEL + VIHOK_API_KEY (fallback Groq)"""
+    key = _vihokai_key()
+    if not key:
+        return None
+    base_url = _vihokai_base_url()
     last_err = None
-    for model in VIHOKAI_MODELS:
+    for model in _vihokai_models():
         try:
-            ans = await _call_groq_model(model, prompt, locale, name, system_prompt)
+            ans = await _call_groq_model(model, prompt, locale, name, system_prompt, api_key=key, base_url=base_url)
             if ans:
                 return ans
         except Exception as e:
