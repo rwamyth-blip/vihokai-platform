@@ -585,6 +585,7 @@ type ChatItem = { id: string; title: string; group: string; messages: Message[] 
 // ===== AI Models =====
 // engine = ชื่อโมเดลจริงบน backend (อ้างอิง META_AI_MODEL/GROQ_MODEL/OPENAI_MODEL/DEEPSEEK_MODEL/KIMI_MODEL)
 const AI_MODELS = [
+  { id: "vihokai", name: "VihokAI 1.0", desc: "Siri · Qwen 27B", icon: "👑", color: "text-amber-500", engine: "qwen3.8-27b", badge: "SIRI" },
   { id: "auto", name: "Auto", desc: "Smart Selection", icon: "◉", color: "text-orange-500", engine: "gpt-oss-120b · gpt-5-nano" },
   { id: "chatgpt", name: "ChatGPT", desc: "Smart & Fast", icon: "◉", color: "text-orange-500", engine: "gpt-5-nano" },
   { id: "gemini", name: "Gemini", desc: "Balanced", icon: "✦", color: "text-blue-500", engine: "gemini-3.1-flash-lite" },
@@ -1011,6 +1012,7 @@ export default function Page() {
       if (mode === "compare" && data.all_answers) {
         content = "📊 **เปรียบเทียบคำตอบจากทุก AI:**\n\n"
         const aiNames: Record<string, string> = {
+          vihokai: "VihokAI 1.0",
           chatgpt: "ChatGPT",
           gemini: "Gemini",
           deepseek: "DeepSeek",

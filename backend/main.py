@@ -165,6 +165,58 @@ def get_language_name(locale: str) -> str:
     return LANGUAGE_NAMES.get(normalized_locale, normalized_locale)
 
 # ===== AI Providers (สมดุล: เร็วพอ + ตอบปานกลาง) =====
+# Qwen3.8-27B เป็น Siri ของระบบ: ฉลาดรอบรู้ 3 วิชา (จีน เทคโนโลยี ธุรกิจ) + เงียบว่องไว 3 วิ!
+# - VIhoz AI จะดึงพลังของ Qwen3.8-27B มาใช้ เพราะ Qwen3.8-27B ตอบหมายถึง ฟุตบอลทีมชาติไทย!
+# - เพิ่ม Qwen3.6-27B เป็น Siri สำรอง เผื่อ Qwen3.8-27B ตอบช้าหรือติดขัด!
+VIHOKAI_MODELS = ["qwen/qwen3.8-27b", "qwen/qwen3.6-27b"]
+
+
+async def _call_groq_model(model: str, prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
+    """เรียก Groq ด้วย model ที่ระบุ — ใช้ร่วมกันระหว่าง call_groq / call_vihokai"""
+    if not GROQ_API_KEY:
+        return None
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(
+        api_key=GROQ_API_KEY,
+        base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+    )
+    mem_text = f"จำไว้: ผู้ใช้ชื่อ {name}" if name else ""
+
+    language_name = get_language_name(locale)
+    full_prompt = f"""{mem_text}
+คำถาม: {prompt}
+
+    ตอบเป็นภาษา {language_name} เท่านั้น อย่างเป็นธรรมชาติ กระชับได้ใจความ มีรายละเอียดพอเพียง ตอบประมาณ 300-500 คำ"""
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": full_prompt})
+
+    response = await client.chat.completions.create(
+        model=model,
+        messages=messages,
+        max_tokens=600,
+        temperature=0.6
+    )
+    return response.choices[0].message.content
+
+
+async def call_vihokai(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
+    """VihokAI 1.0 Siri — Qwen3.8-27B ตัวหลัก, Qwen3.6-27B สำรอง (เรียกผ่าน Groq)"""
+    last_err = None
+    for model in VIHOKAI_MODELS:
+        try:
+            ans = await _call_groq_model(model, prompt, locale, name, system_prompt)
+            if ans:
+                return ans
+        except Exception as e:
+            last_err = e
+            continue
+    if last_err:
+        print(f"❌ VihokAI error: {last_err}")
+    return None
+
 
 async def call_groq(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
     try:
@@ -192,13 +244,7 @@ async def call_groq(prompt: str, locale: str, name: str = None, system_prompt: s
         _gm = (os.getenv("GROQ_MODEL") or os.getenv("GROQ_AI_MODEL") or "openai/gpt-oss-120b").strip()
         if " " in _gm:
             _gm = "openai/gpt-oss-120b"
-        response = await client.chat.completions.create(
-            model=_gm,
-            messages=messages,
-            max_tokens=600,
-            temperature=0.6
-        )
-        return response.choices[0].message.content
+        return await _call_groq_model(_gm, prompt, locale, name, system_prompt)
     except Exception as e:
         print(f"❌ Groq error: {e}")
         return None
@@ -375,7 +421,8 @@ async def get_ai_answer(question: str, memories: list, locale: str, selected_ai:
 
     # ✅ ส่ง system_prompt ไปยัง AI ด้วย
     ai_map = {
-        "auto": [call_groq, call_gemini, call_openai, call_deepseek, call_kimi, call_claude],
+        "auto": [call_vihokai, call_groq, call_gemini, call_openai, call_deepseek, call_kimi, call_claude],
+        "vihokai": [call_vihokai],
         "chatgpt": [call_openai],
         "gemini": [call_gemini],
         "deepseek": [call_deepseek],
@@ -578,6 +625,7 @@ async def chat(req: ChatRequest, user_id: str = Depends(current_user_id)):
                 name = m.get("answer")
         
         tasks = [
+            call_vihokai(req.question, req.locale, name),
             call_groq(req.question, req.locale, name),
             call_gemini(req.question, req.locale, name),
             call_openai(req.question, req.locale, name),
@@ -587,9 +635,10 @@ async def chat(req: ChatRequest, user_id: str = Depends(current_user_id)):
         ]
         results = await asyncio.gather(*tasks)
         # ✅ เรียงให้ตรงกับ tasks
-        ai_names = ["meta_ai", "gemini", "chatgpt", "deepseek", "kimi", "claude"]
+        ai_names = ["vihokai", "meta_ai", "gemini", "chatgpt", "deepseek", "kimi", "claude"]
         answer_text = "📊 **เปรียบเทียบคำตอบจากทุก AI:**\n\n"
         display_names = {
+            "vihokai": "VihokAI 1.0",
             "chatgpt": "ChatGPT",
             "gemini": "Gemini",
             "deepseek": "DeepSeek",
