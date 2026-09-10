@@ -333,7 +333,6 @@ async def call_claude(prompt: str, locale: str, name: str = None, system_prompt:
         response = await client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=600,
-            temperature=0.6,
             messages=[{"role": "user", "content": full_prompt}]
         )
         return response.content[0].text
