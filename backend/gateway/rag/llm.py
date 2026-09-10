@@ -7,12 +7,27 @@ import os
 from typing import List, Dict, Optional
 
 # OpenAI-compatible providers — ใช้ openai SDK ตัวเดียวเรียกได้หลายเจ้า
+# "params" = extra kwargs per provider. GPT-5 family (reasoning models) rejects
+# temperature/max_tokens and needs max_completion_tokens + reasoning_effort.
 PROVIDERS = [
-    {"name": "openai",   "key": "OPENAI_API_KEY",    "base_url": None,                               "model": "gpt-4o-mini"},
-    {"name": "groq",     "key": "GROQ_API_KEY",      "base_url": "https://api.groq.com/openai/v1",   "model": "openai/gpt-oss-120b"},
-    {"name": "deepseek", "key": "DEEPSEEK_API_KEY",  "base_url": "https://api.deepseek.com/v1",      "model": "deepseek-chat"},
-    {"name": "kimi",     "key": "KIMI_API_KEY",      "base_url": "https://api.moonshot.ai/v1",       "model": "kimi-k3"},
+    {"name": "openai",   "key": "OPENAI_API_KEY",    "base_url": None,                               "model": "gpt-5-nano",
+     "params": {"max_completion_tokens": 2000, "reasoning_effort": "minimal"}},
+    {"name": "groq",     "key": "GROQ_API_KEY",      "base_url": "https://api.groq.com/openai/v1",   "model": "openai/gpt-oss-120b",
+     "params": {"temperature": 0.3}},
+    {"name": "deepseek", "key": "DEEPSEEK_API_KEY",  "base_url": "https://api.deepseek.com/v1",      "model": "deepseek-chat",
+     "params": {"temperature": 0.3}},
+    {"name": "kimi",     "key": "KIMI_API_KEY",      "base_url": "https://api.moonshot.ai/v1",       "model": "kimi-k3",
+     "params": {"temperature": 0.3}},
 ]
+
+
+def _provider_config(provider: dict) -> dict:
+    """Allow env override: OPENAI_MODEL / OPENAI_BASE_URL etc. (name -> NAME_MODEL)."""
+    name = provider["name"].upper()
+    cfg = dict(provider)
+    cfg["model"] = os.getenv(f"{name}_MODEL", provider["model"])
+    cfg["base_url"] = os.getenv(f"{name}_BASE_URL", provider["base_url"])
+    return cfg
 
 SYSTEM_PROMPT = (
     "คุณคือ VihokAI ผู้ช่วยค้นคว้าจาก Global Library Gateway. "
@@ -36,20 +51,21 @@ def _mock_answer(question: str, context: str) -> str:
 async def _call_provider(provider: dict, question: str, context: str, history: Optional[List[Dict]]) -> Optional[str]:
     from openai import AsyncOpenAI
 
-    key = os.getenv(provider["key"], "")
+    cfg = _provider_config(provider)
+    key = os.getenv(cfg["key"], "")
     if not key or key.startswith("sk-..."):  # placeholder -> skip
         return None
 
-    client = AsyncOpenAI(api_key=key, base_url=provider["base_url"])
+    client = AsyncOpenAI(api_key=key, base_url=cfg["base_url"])
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     if history:
         messages.extend(history[-6:])
     messages.append({"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"})
 
     resp = await client.chat.completions.create(
-        model=provider["model"],
+        model=cfg["model"],
         messages=messages,
-        temperature=0.3,
+        **cfg.get("params", {}),
     )
     return resp.choices[0].message.content
 
