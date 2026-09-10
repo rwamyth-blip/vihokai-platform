@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+import { apiFetch, jsonInit, requireLogin } from "@/lib/api"
 
 type Message = { role: string; content: string; id: string }
 type ChatDetail = {
@@ -26,13 +25,15 @@ export default function ChatDetailPage() {
 	const [isSending, setIsSending] = useState(false)
 
 	useEffect(() => {
+		// ✅ ต้อง login ก่อน — ไม่มี session จะเดือนไป /auth
+		if (!requireLogin()) return
 		if (chatId) fetchChat()
 	}, [chatId])
 
 	const fetchChat = async () => {
 		setLoading(true)
 		try {
-			const res = await fetch(`${API_BASE}/api/conversations/${chatId}?user_id=anon`)
+			const res = await apiFetch(`/api/conversations/${chatId}`)
 			if (!res.ok) throw new Error("ไม่พบแชทนี้")
 			const data = await res.json()
 			if (data?.error || !Array.isArray(data?.messages)) throw new Error("ไม่พบแชทนี้")
@@ -59,11 +60,10 @@ export default function ChatDetailPage() {
 		setChat((prev) => prev && { ...prev, messages: [...(prev.messages || []), userMsg] })
 
 		try {
-			const res = await fetch(`${API_BASE}/api/chat`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ question: q, locale, user_id: "anon", conversation_id: chatId }),
-			})
+			const res = await apiFetch(
+				"/api/chat",
+				jsonInit({ question: q, locale, conversation_id: chatId }),
+			)
 			const data = await res.json()
 			const aiMsg: Message = {
 				role: "assistant",

@@ -1,6 +1,7 @@
 "use client"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { saveSession } from "@/lib/api"
 
 export default function AuthCallback() {
   const router = useRouter()
@@ -11,8 +12,7 @@ export default function AuthCallback() {
     const user = urlParams.get("user")
     
     if (token && user) {
-      localStorage.setItem("token", token)
-      localStorage.setItem("user", user)
+      saveSession(token, user)
       router.push("/th")
     } else {
       router.push("/auth")

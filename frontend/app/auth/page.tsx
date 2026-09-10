@@ -1,29 +1,101 @@
 "use client"
 import { useState, useEffect } from "react"
-import Link from "next/link"
+import { API_BASE, saveSession } from "@/lib/api"
 
 export default function AuthPage() {
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
+  const [nextPath, setNextPath] = useState("")
 
   const handleGoogleLogin = () => {
     setLoading(true)
-    // Backend /api/auth/google ตอบ 302 redirect → ไป Google โดยตรง
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
     window.location.href = `${API_BASE}/api/auth/google`
   }
 
-  // รับ callback จาก Backend
+  // Login โดยตรง: email + รหัสผ่าน ครั้งเดียวจบ
+  // ไม่มี 2FA · ไม่มี OTP ทาง SMS · ไม่มี prompt เด้งบนมือถือ · ไม่มี reCAPTCHA
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+    setNotice("")
+
+    const address = email.trim().toLowerCase()
+
+    // ---- ลืมรหัสผ่าน: ขอลิงก์ตั้งรหัสใหม่ทางอีเมล ----
+    if (mode === "forgot") {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: address }),
+        })
+        const data = await res.json().catch(() => ({}))
+        const detail = data?.detail
+
+        if (!res.ok) {
+          setError(
+            typeof detail === "string"
+              ? detail
+              : detail?.message || "ส่งลิงก์ไม่สำเร็จ กรุณาลองใหม่"
+          )
+        } else {
+          setNotice(data?.message || "ถ้าอีเมลนี้มีอยู่ในระบบ เราได้ส่งลิงก์ไปแล้ว")
+          setMode("login")
+        }
+      } catch {
+        setError("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่")
+      }
+      setLoading(false)
+      return
+    }
+
+    // ---- เข้าสู่ระบบ / สมัครใหม่ ----
+    const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register"
+
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: address, password }),
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        const detail = data?.detail
+        setError(
+          typeof detail === "string"
+            ? detail
+            : detail?.message || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่"
+        )
+        setLoading(false)
+        return
+      }
+
+      saveSession(data.token, data.user)
+      window.location.href = nextPath || "/"
+    } catch {
+      setError("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่")
+      setLoading(false)
+    }
+  }
+
+  // รับ callback จาก Backend (?token=...&user=...) และอ่าน ?next= เพื่อกลับไปที่เดิม
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
+    const next = urlParams.get("next") || ""
+    setNextPath(next)
+
     const token = urlParams.get("token")
     const user = urlParams.get("user")
-    
+
     if (token && user) {
-      localStorage.setItem("token", token)
-      localStorage.setItem("user", user)
-      window.location.href = "/"
+      saveSession(token, user)
+      window.location.href = next || "/"
     }
   }, [])
 
@@ -37,30 +109,120 @@ export default function AuthPage() {
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-center text-white mb-2">Welcome back</h1>
-        <p className="text-center text-white/40 text-sm mb-6">Sign in to continue to Vihok AI</p>
+        <h1 className="text-2xl font-bold text-center text-white mb-2">
+          {mode === "login"
+            ? "Welcome back"
+            : mode === "register"
+              ? "Create your account"
+              : "ลืมรหัสผ่าน"}
+        </h1>
+        <p className="text-center text-white/40 text-sm mb-6">
+          {mode === "login"
+            ? "Sign in to continue to Vihok AI"
+            : mode === "register"
+              ? "Sign up with email and password"
+              : "กรอกอีเมลเพื่อรับลิงก์ตั้งรหัสผ่านใหม่"}
+        </p>
 
-        {/* Email Input */}
-        <div className="space-y-4">
+        {/* Email + Password — login ตรงครั้งเดียวจบ ไม่มีขั้นตอนยืนยันเพิ่ม */}
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="example@gmail.com"
+            autoComplete="email"
+            required
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/20"
           />
-          
-          <button className="w-full bg-white text-black font-semibold py-3 rounded-xl hover:bg-gray-200 transition">
-            Continue
+
+          {mode !== "forgot" && (
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="รหัสผ่าน (อย่างน้อย 8 ตัวอักษร)"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              required
+              minLength={8}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/20"
+            />
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-white text-black font-semibold py-3 rounded-xl hover:bg-gray-200 transition disabled:opacity-50"
+          >
+            {loading
+              ? mode === "forgot"
+                ? "กำลังส่งลิงก์..."
+                : mode === "login"
+                  ? "Signing in..."
+                  : "Creating account..."
+              : mode === "forgot"
+                ? "ส่งลิงก์ตั้งรหัสผ่านใหม่"
+                : mode === "login"
+                  ? "Sign In"
+                  : "Sign Up"}
           </button>
 
-          <div className="text-right">
-            <a href="#" className="text-sm text-white/30 hover:text-white/60 transition">
-              Forgot password?
-            </a>
-          </div>
-        </div>
+          {mode === "login" && (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("forgot")
+                  setError("")
+                  setNotice("")
+                }}
+                className="text-sm text-white/40 hover:text-white/70 transition"
+              >
+                ลืมรหัสผ่าน?
+              </button>
+            </div>
+          )}
 
+          <p className="text-center text-sm text-white/40">
+            {mode === "forgot" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login")
+                  setError("")
+                  setNotice("")
+                }}
+                className="text-white hover:underline font-medium"
+              >
+                ← กลับไปเข้าสู่ระบบ
+              </button>
+            ) : (
+              <>
+                {mode === "login" ? "ยังไม่มีบัญชี?" : "มีบัญชีอยู่แล้ว?"}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode(mode === "login" ? "register" : "login")
+                    setError("")
+                    setNotice("")
+                  }}
+                  className="text-white hover:underline font-medium"
+                >
+                  {mode === "login" ? "สมัครใหม่" : "เข้าสู่ระบบ"}
+                </button>
+              </>
+            )}
+          </p>
+        </form>
+
+        {notice && (
+          <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-300 text-sm text-center">
+            {notice}
+          </div>
+        )}
+
+        {mode !== "forgot" && (
+          <>
         {/* Divider */}
         <div className="flex items-center gap-4 my-6">
           <div className="flex-1 h-px bg-white/10"></div>
@@ -84,35 +246,9 @@ export default function AuthPage() {
             <span className="text-white font-medium">Continue with Google</span>
           </button>
 
-          <button className="w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-xl py-3 hover:bg-white/10 transition">
-            <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-            </svg>
-            <span className="text-white font-medium">Continue with Facebook</span>
-          </button>
-
-          <button className="w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-xl py-3 hover:bg-white/10 transition">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-            </svg>
-            <span className="text-white font-medium">Continue with Apple</span>
-          </button>
-
-          <button className="w-full flex items-center justify-center gap-3 bg-white/5 border border-white/10 rounded-xl py-3 hover:bg-white/10 transition">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M11.4 24c-.3 0-.7-.1-1-.3C4.7 21.1 0 16.6 0 11.7 0 6.8 4.3 3 9.6 3c2.1 0 4.1.8 5.6 2.2l-2.3 2.3c-.9-.9-2.1-1.3-3.3-1.3-3.4 0-6.1 2.7-6.1 6.1 0 3.4 2.7 6.1 6.1 6.1 2.9 0 5.2-1.9 5.9-4.5h-5.9v-3h9.4c.1.5.2 1 .2 1.5 0 5.3-3.6 9.1-8.7 9.1z"/>
-            </svg>
-            <span className="text-white font-medium">Continue with Microsoft</span>
-          </button>
         </div>
-
-        {/* Sign Up Link */}
-        <p className="text-center text-white/30 text-sm mt-6">
-          Don't have an account?{" "}
-          <a href="#" className="text-white hover:underline font-medium">
-            Sign up
-          </a>
-        </p>
+          </>
+        )}
 
         {/* Error Message */}
         {error && (

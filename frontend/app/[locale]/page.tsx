@@ -3,6 +3,13 @@ import { useState, useMemo, useRef, useEffect } from "react"
 import type { ReactNode } from "react"
 import { useRouter, useParams, usePathname } from "next/navigation"
 import {
+  API_BASE,
+  apiFetch,
+  getToken,
+  jsonInit,
+  requireLogin,
+} from "@/lib/api"
+import {
   Plus,
   Search,
   Settings,
@@ -596,7 +603,7 @@ const AI_TOOLS = [
   { id: "presentation", name: "สร้างสไลด์", desc: "AI Presentation", icon: Presentation, color: "bg-orange-500" },
 ]
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+// API_BASE / apiFetch มาจาก @/lib/api — ที่เดียวทั้งแอป
 
 // ===== Timezone helpers: backend ส่ง UTC ISO → แสดงตาม timezone เครื่องผู้ใช้ =====
 function toLocalDate(isoDate?: string): Date | null {
@@ -679,14 +686,9 @@ export default function Page() {
   }
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user")
-    if (!storedUser) return
-
-    try {
-      setUser(JSON.parse(storedUser))
-    } catch {
-      localStorage.removeItem("user")
-    }
+    // ✅ ต้อง login ก่อนใช้งาน — ไม่มี session ที่ใช้ได้จะเดือนไป /auth
+    const session = requireLogin()
+    if (session) setUser(session)
   }, [])
 
   useEffect(() => {
@@ -700,6 +702,9 @@ export default function Page() {
   }, [urlLocale, locale])
 
   useEffect(() => {
+    // ยังไม่มี token = กำลังถูกเดือนไปหน้า login — ไม่ต้องยิง API
+    if (!getToken()) return
+
     fetch(`${API_BASE}/`)
       .then((r) => r.json())
       .then(() => setBackendStatus("✓ Connected"))
@@ -716,7 +721,8 @@ export default function Page() {
 
   const loadMemories = async () => {
     try {
-      const res = await fetch(`${API_BASE}/memory/recall?user_id=anon`)
+      // ไม่ต้องส่ง user_id — backend อ่านจาก token
+      const res = await apiFetch("/memory/recall")
       const data = await res.json()
       if (data.memories) setMemories(data.memories.slice(-5))
     } catch {}
@@ -724,7 +730,7 @@ export default function Page() {
 
   const loadConversations = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/conversations?user_id=anon&limit=100`)
+      const res = await apiFetch("/api/conversations?limit=100")
       if (!res.ok) throw new Error(`Backend returned ${res.status}`)
 
       const data = await res.json()
@@ -789,11 +795,7 @@ export default function Page() {
 
   const createNewChat = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/new-chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: "anon", title: t.newChat }),
-      })
+      const res = await apiFetch("/api/new-chat", jsonInit({ title: t.newChat }))
       if (!res.ok) throw new Error(`Backend returned ${res.status}`)
       const data = await res.json()
       const newId = data.conversation_id || data.conversation?.id
@@ -822,9 +824,7 @@ export default function Page() {
 
   const deleteChat = async (chatId: string) => {
     try {
-      await fetch(`${API_BASE}/api/conversations/${chatId}?user_id=anon`, {
-        method: "DELETE",
-      })
+      await apiFetch(`/api/conversations/${chatId}`, { method: "DELETE" })
     } catch {}
     setChats((prev) => prev.filter((c) => c.id !== chatId))
     if (currentChatId === chatId) {
@@ -836,9 +836,7 @@ export default function Page() {
 
   const clearAllMemories = async () => {
     try {
-      await fetch(`${API_BASE}/memory/clear?user_id=anon`, {
-        method: "POST",
-      })
+      await apiFetch("/memory/clear", { method: "POST" })
       setMemories([])
     } catch {}
   }
@@ -899,17 +897,15 @@ export default function Page() {
     if (mode === "stream") {
       setIsStreaming(true)
       try {
-        const res = await fetch(`${API_BASE}/api/chat/stream`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        const res = await apiFetch(
+          "/api/chat/stream",
+          jsonInit({
             question: q,
             locale,
-            user_id: "anon",
             conversation_id: targetChatId,
             mode: "stream",
           }),
-        })
+        )
 
         if (!res.ok) throw new Error(`Backend returned ${res.status}`)
         if (!res.body) throw new Error("No response body")
@@ -996,18 +992,16 @@ export default function Page() {
 
     setIsThinking(true)
     try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await apiFetch(
+        "/api/chat",
+        jsonInit({
           question: q,
           locale,
-          user_id: "anon",
           conversation_id: targetChatId,
           mode: mode,
           selected_ai: mode === "single" ? selectedAI : undefined,
         }),
-      })
+      )
       if (!res.ok) throw new Error(`Backend returned ${res.status}`)
       const data = await res.json()
 

@@ -34,7 +34,9 @@ from translate import router as translate_router
 from translate import SUPPORTED_LANGUAGES
 from translate import translate_text_async
 from api.auth.google.callback import router as google_callback_router
-from auth import verify_jwt
+from api.auth.password import router as password_auth_router
+from api.auth.password_reset import router as password_reset_router
+from auth import current_user_id, verify_jwt
 
 # ✅ Import Global Library Gateway (Library Search + RAG)
 from gateway.api import library as gateway_library
@@ -74,6 +76,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # ✅ รวม Router
 app.include_router(translate_router)
 app.include_router(google_callback_router)
+
+# ✅ Direct email + password auth (ไม่ใช้ 2FA / ไม่ใช้ reCAPTCHA)
+app.include_router(password_auth_router)
+
+# ✅ ลืมรหัสผ่าน (reset token ทางอีเมล · ใช้ครั้งเดียว · หมดอายุ 30 นาที)
+app.include_router(password_reset_router)
 
 # ✅ Global Library Gateway routers (Library Search + RAG Chat)
 app.include_router(gateway_library.router)
@@ -450,7 +458,8 @@ async def save_chat_result(user_id: str, conversation_id: str | None, question: 
     return conv["id"]
 
 @app.post("/api/new-chat")
-async def new_chat(req: NewChatRequest):
+async def new_chat(req: NewChatRequest, user_id: str = Depends(current_user_id)):
+    req.user_id = user_id  # ✅ ใช้ id จาก token เท่านั้น (ไม่เชื่อ body)
     if USE_SUPABASE:
         conv = await db_create_conversation(user_id=req.user_id, title=req.title)
         current_conversation[req.user_id] = conv["id"]
@@ -485,7 +494,7 @@ async def new_chat(req: NewChatRequest):
 
 @app.get("/api/conversations")
 async def get_conversations(
-    user_id: str = Query(default="anon"),
+    user_id: str = Depends(current_user_id),
     limit: int = Query(default=50),
     offset: int = Query(default=0)
 ):
@@ -514,7 +523,7 @@ async def get_conversations(
 @app.get("/api/conversations/{conversation_id}")
 async def get_conversation(
     conversation_id: str,
-    user_id: str = Query(default="anon")
+    user_id: str = Depends(current_user_id)
 ):
     if USE_SUPABASE:
         conv = await db_get_conversation(user_id, conversation_id)
@@ -529,7 +538,7 @@ async def get_conversation(
 @app.delete("/api/conversations/{conversation_id}")
 async def delete_conversation(
     conversation_id: str,
-    user_id: str = Query(default="anon")
+    user_id: str = Depends(current_user_id)
 ):
     if USE_SUPABASE:
         await db_delete_conversation(user_id, conversation_id)
@@ -540,7 +549,8 @@ async def delete_conversation(
 
 # --- Chat (Single / Compare) ---
 @app.post("/api/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, user_id: str = Depends(current_user_id)):
+    req.user_id = user_id  # ✅ ใช้ id จาก token เท่านั้น
     mems = memories_db.get(req.user_id, [])
 
     # ✅ กำหนดค่าเริ่มต้นไว้ก่อนเสมอ
@@ -630,7 +640,8 @@ async def chat(req: ChatRequest):
 
 # --- Streaming ---
 @app.post("/api/chat/stream")
-async def chat_stream(req: ChatRequest):
+async def chat_stream(req: ChatRequest, user_id: str = Depends(current_user_id)):
+    req.user_id = user_id  # ✅ ใช้ id จาก token เท่านั้น
     """Streaming Response - พิมพ์ทีละคำ"""
     mems = memories_db.get(req.user_id, [])
     
@@ -666,14 +677,14 @@ async def chat_stream(req: ChatRequest):
 # --- Memory ---
 @app.post("/memory/save")
 async def save_memory(
-    user_id: str | None = Query(default=None),
+    user_id: str = Depends(current_user_id),
     question: str | None = Query(default=None),
     answer: str | None = Query(default=None),
     key: str | None = Query(default=None),
     value: str | None = Query(default=None),
     body: MemorySaveRequest | None = None
 ):
-    uid = user_id or (body.user_id if body else "anon")
+    uid = user_id  # ✅ จาก token เท่านั้น
     q = question or (body.question if body else "") or (body.key if body and body.key else key) or ""
     a = answer or (body.answer if body else "") or (body.value if body and body.value else value) or ""
 
@@ -698,29 +709,33 @@ async def save_memory(
     memories_db[user_id] = memories[-10:]
     return {"status": "saved", "user_id": uid, "question": q, "answer": a, "count": len(memories_db[uid]), "powered_by": "Vihok AI"}
 
-@app.get("/memory/recall")
-async def recall_get(
-    user_id: str = Query(default="anon"),
-    query: str = Query(default=""),
-    key: str = Query(default="")
-):
+async def _recall_memories(user_id: str, q: str):
+    """ตรรกะค้น memory ใช้ร่วมกันทั้ง GET และ POST"""
     if USE_SUPABASE:
         mems = await db_get_memories(user_id) or []
     else:
         mems = [m for m in memories_db.get(user_id, []) if "???" not in str(m)]
 
-    q = query or key
     if q:
         filtered = [m for m in mems if q.lower() in str(m).lower()]
         return {"user_id": user_id, "query": q, "memories": filtered, "count": len(filtered), "powered_by": "Vihok AI"}
     return {"user_id": user_id, "memories": mems, "count": len(mems), "powered_by": "Vihok AI"}
 
+
+@app.get("/memory/recall")
+async def recall_get(
+    user_id: str = Depends(current_user_id),
+    query: str = Query(default=""),
+    key: str = Query(default="")
+):
+    return await _recall_memories(user_id, query or key)
+
 @app.post("/memory/recall")
-async def recall_post(body: MemoryRecallRequest):
-    return await recall_get(user_id=body.user_id, query=body.query or body.key or "")
+async def recall_post(body: MemoryRecallRequest, user_id: str = Depends(current_user_id)):
+    return await _recall_memories(user_id, body.query or body.key or "")
 
 @app.post("/memory/clear")
-async def clear_memory(user_id: str = Query(default="anon")):
+async def clear_memory(user_id: str = Depends(current_user_id)):
     if USE_SUPABASE:
         await db_clear_memories(user_id)
         return {"status": "cleared", "user_id": user_id}
@@ -730,7 +745,7 @@ async def clear_memory(user_id: str = Query(default="anon")):
 
 
 @app.get("/memory/clear")
-async def clear_memory_get(user_id: str = Query(default="anon")):
+async def clear_memory_get(user_id: str = Depends(current_user_id)):
     if USE_SUPABASE:
         await db_clear_memories(user_id)
         return {"status": "cleared", "user_id": user_id}
