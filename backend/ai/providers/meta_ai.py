@@ -50,15 +50,25 @@ class MetaAIProvider:
             return f"[DEV MODE ViHok AI] Mock answer for: {prompt[:150]}... (ใส่ GROQ_API_KEY จริงใน .env เพื่อได้คำตอบจริง)"
         
         try:
+            # เพดาน output กัน Groq 429 (OTPM limit ของ org ค่อนข้างต่ำ)
+            ceiling = int(os.getenv("META_AI_MAX_TOKENS", "900"))
+            max_tokens = min(int(kwargs.get("max_tokens", ceiling)), ceiling)
+
+            # ใช้ system_prompt ที่ส่งมา ถ้ามี
+            system_prompt = kwargs.get("system_prompt") or (
+                "You are a helpful AI assistant named ViHok AI. "
+                "You provide accurate, helpful, and thoughtful responses."
+            )
+
             # สร้าง completion request
             completion = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a helpful AI assistant named ViHok AI. You provide accurate, helpful, and thoughtful responses."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=kwargs.get("temperature", 0.7),
-                max_tokens=kwargs.get("max_tokens", 2000),
+                max_tokens=max_tokens,
                 top_p=kwargs.get("top_p", 1.0),
                 frequency_penalty=kwargs.get("frequency_penalty", 0.0),
                 presence_penalty=kwargs.get("presence_penalty", 0.0)
