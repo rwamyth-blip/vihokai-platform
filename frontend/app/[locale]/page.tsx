@@ -9,6 +9,7 @@ import {
   jsonInit,
   requireLogin,
 } from "@/lib/api"
+import { VihokLogoMark } from "@/components/VihokLogo"
 import {
   Plus,
   Search,
@@ -1068,8 +1069,8 @@ export default function Page() {
     if (!currentChat || currentChat.messages.length === 0) {
       return (
         <div className="h-full flex flex-col items-center justify-center text-center max-w-[600px] mx-auto">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center font-bold text-[20px] mb-4 shadow-lg shadow-orange-200">
-            <Bot size={28} />
+          <div className="mb-4 drop-shadow-lg">
+            <VihokLogoMark size={56} />
           </div>
           <h1 className="text-[28px] font-bold leading-tight text-slate-800 dark:text-white">{t.h1}</h1>
           <p className="text-[13px] text-slate-500 dark:text-white/50 mt-2 max-w-md">{t.sub}</p>
@@ -1107,8 +1108,8 @@ export default function Page() {
           return (
             <div key={m.id} className={isUser ? "flex justify-end gap-3" : "flex gap-3"}>
               {!isUser && (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-md">
-                  <Bot size={19} />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white dark:bg-white/10 shadow-md overflow-hidden">
+                  <VihokLogoMark size={26} />
                 </div>
               )}
               <div className={isUser ? "max-w-[75%]" : "max-w-[82%]"}>
@@ -1137,8 +1138,8 @@ export default function Page() {
         })}
         {(isThinking || isStreaming) && (
           <div className="flex gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-md">
-              <Bot size={19} />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white dark:bg-white/10 shadow-md overflow-hidden">
+              <VihokLogoMark size={26} />
             </div>
             <div className="max-w-[82%]">
               <div className="rounded-2xl rounded-tl-md bg-gradient-to-br from-blue-50 to-slate-50 dark:bg-[#2a2a2a] px-5 py-4">
@@ -1191,9 +1192,7 @@ export default function Page() {
         {/* Logo */}
         <div className="flex h-[88px] items-center justify-between px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 dark:shadow-none">
-              <Bot size={25} />
-            </div>
+            <VihokLogoMark size={44} />
             <div>
               <h1 className="text-xl font-bold text-blue-700 dark:text-white">Vihok AI</h1>
               <p className="text-[11px] text-slate-400 dark:text-white/30">{t.tagline}</p>
@@ -1473,8 +1472,8 @@ export default function Page() {
               {/* Chat Header */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 px-6 py-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-500/20 text-orange-500">
-                    <Bot size={19} />
+                  <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-white dark:bg-white/10 shadow-sm">
+                    <VihokLogoMark size={28} />
                   </div>
                   <div>
                     <p className="text-sm font-bold">{t.assistantName}</p>
