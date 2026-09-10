@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "vihokai-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "vars": {
+    "BACKEND_URL": "https://api.vihokai.com",
+    "EDGE_RATE_MAX": "60",
+    "EDGE_RATE_WINDOW": "60"
+  }
+}
