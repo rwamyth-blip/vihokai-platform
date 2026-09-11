@@ -48,6 +48,12 @@ export function clearSession(): void {
   localStorage.removeItem(USER_KEY)
 }
 
+/** Log out: ล้าง session แล้วกลับหน้าแรกแบบยังไม่ login (ไม่เด้งไป /auth) */
+export function logoutToHome(): void {
+  clearSession()
+  window.location.href = "/"
+}
+
 function goToLogin(): void {
   const back = window.location.pathname + window.location.search
   window.location.href = `${LOGIN_PATH}?next=${encodeURIComponent(back)}`

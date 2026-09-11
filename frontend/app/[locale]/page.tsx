@@ -7,6 +7,7 @@ import {
   apiFetch,
   getToken,
   jsonInit,
+  logoutToHome,
   requireLogin,
 } from "@/lib/api"
 import { VihokLogoMark } from "@/components/VihokLogo"
@@ -404,6 +405,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     memoryEmpty: "ยังไม่มีความจำ",
     freePlan: "แผนฟรี",
     login: "เข้าสู่ระบบ",
+    logout: "ออกจากระบบ",
     assistantName: "Vihok AI",
     proLimitless: "✓ ใช้งาน AI ได้ไม่จำกัด",
     proLatestModel: "✓ เข้าถึงโมเดลล่าสุด",
@@ -436,6 +438,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     memoryEmpty: "No memories yet",
     freePlan: "Free Plan",
     login: "Log In",
+    logout: "Log Out",
     assistantName: "Vihok AI",
     proLimitless: "✓ Unlimited AI chats",
     proLatestModel: "✓ Access to latest models",
@@ -468,6 +471,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     memoryEmpty: "暂无记忆",
     freePlan: "免费版",
     login: "登录",
+    logout: "退出登录",
     assistantName: "Vihok AI",
     proLimitless: "✓ AI 聊天不限量",
     proLatestModel: "✓ 使用最新模型",
@@ -500,6 +504,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     memoryEmpty: "メモリはまだありません",
     freePlan: "無料プラン",
     login: "ログイン",
+    logout: "ログアウト",
     assistantName: "Vihok AI",
     proLimitless: "✓ AIチャット無制限",
     proLatestModel: "✓ 最新モデルへアクセス",
@@ -532,6 +537,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     memoryEmpty: "메모리가 없습니다",
     freePlan: "무료 플랜",
     login: "로그인",
+    logout: "로그아웃",
     assistantName: "Vihok AI",
     proLimitless: "✓ AI 채팅 무제한",
     proLatestModel: "✓ 최신 모델 이용",
@@ -679,6 +685,7 @@ export default function Page() {
   const [backendStatus, setBackendStatus] = useState("checking...")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -1412,24 +1419,46 @@ export default function Page() {
             </button>
 
             {user ? (
-              <div className="hidden md:flex items-center gap-3">
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="h-10 w-10 rounded-full object-cover" />
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-blue-500 text-sm font-bold text-white">
-                    {(user.name || "U").charAt(0).toUpperCase()}
+              <div className="relative hidden md:block">
+                <button
+                  onClick={() => setShowUserMenu((v) => !v)}
+                  className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-slate-50 dark:hover:bg-white/5"
+                >
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-blue-500 text-sm font-bold text-white">
+                      {(user.name || "U").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="text-left leading-tight">
+                    <p className="max-w-[140px] truncate text-sm font-semibold">{user.name || user.email}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-white/40">{t.freePlan}</p>
                   </div>
+                  <ChevronDown size={16} className={`transition ${showUserMenu ? "rotate-180" : ""}`} />
+                </button>
+                {showUserMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+                    <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#2a2a2a] shadow-xl">
+                      <div className="border-b border-slate-100 dark:border-white/5 px-4 py-3">
+                        <p className="truncate text-sm font-semibold">{user.name || user.email}</p>
+                        <p className="truncate text-[11px] text-slate-400 dark:text-white/40">{user.email}</p>
+                      </div>
+                      <button
+                        onClick={() => { setShowUserMenu(false); logoutToHome() }}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-red-500 transition hover:bg-red-50 dark:hover:bg-red-500/10"
+                      >
+                        ⎋ {t.logout}
+                      </button>
+                    </div>
+                  </>
                 )}
-                <div className="leading-tight">
-                  <p className="text-sm font-semibold">{user.name || user.email}</p>
-                  <p className="text-[11px] text-slate-400 dark:text-white/40">{t.freePlan}</p>
-                </div>
-                <ChevronDown size={16} />
               </div>
             ) : (
               <button
                 onClick={handleGoogleLogin}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-[12px] font-bold transition"
+                className="hidden md:block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-[12px] font-bold transition"
               >
                 {t.login}
               </button>
