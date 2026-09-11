@@ -207,12 +207,47 @@ def _is_reasoning_model(model: str) -> bool:
     return m.startswith("gpt-5") or m.startswith("o1") or m.startswith("o3") or m.startswith("o4")
 
 
-def _nano_budget() -> int:
-    """โควตา token ฝั่ง GPT-5-nano — default 1024 (พอสำหรับคำตอบมาตรฐาน, ประหยัดกว่า 2000 ~2x)"""
+def _nano_budget(long: bool = False) -> int:
+    """โควตา token ฝั่ง GPT-5-nano — default 1024, โหมดยาว 4000 (ปรับผ่าน NANO_BUDGET / NANO_BUDGET_LONG)"""
     try:
+        if long:
+            return max(1024, min(8000, int(os.getenv("NANO_BUDGET_LONG", "4000"))))
         return max(256, min(4000, int(os.getenv("NANO_BUDGET", "1024"))))
     except ValueError:
-        return 1024
+        return 4000 if long else 1024
+
+
+# ===== ระดับความยาวคำตอบ (มาตรฐาน AI ทั่วไป) =====
+# short  = ตอบสั้น (ถามสั้น/ทักทาย) → max_tokens 300
+# std    = มาตรฐาน (default) → max_tokens 1500 (~800-1200 คำ)
+# long   = ยาว (ถามละเอียด/มีคำสั่ง /expand /deep /godmode...) → max_tokens 4000
+LONG_COMMANDS = {"/expand", "/lengthen", "/deep", "/expert", "/research", "/godmode", "/steps", "/howto", "/plan", "/strategy", "/seo", "/compare", "/contrast", "/proscons", "/critic", "/interview", "/quiz", "/flashcards", "/examples", "/analogy", "/teacher", "/artifacts", "/ooda"}
+LONG_KEYWORDS = ("อย่างละเอียด", "ละเอียด", "เจาะลึก", "ยาว", "step", "วิธีทำ", "ขั้นตอน", "เปรียบเทียบ", "วิเคราะห์", "แผน", "in detail", "detailed", "step-by-step", "step by step", "comprehensive", "thorough")
+SHORT_KEYWORDS = ("สั้นๆ", "สั้น", "สั้นที่สุด", "one word", "สั้นๆ", "brief", "สั้น", "ย่อ")
+
+
+def _length_tier(question: str, command: str | None = None) -> str:
+    """ตัดสินใจระดับความยาวจากคำสั่ง + คำถาม: short | std | long"""
+    if command in LONG_COMMANDS:
+        return "long"
+    q = (question or "").lower()
+    if any(k in q for k in LONG_KEYWORDS):
+        return "long"
+    if len(q) <= 30 or any(k in q for k in SHORT_KEYWORDS):
+        return "short"
+    return "std"
+
+
+def _tier_tokens(tier: str) -> int:
+    return {"short": 300, "std": 1500, "long": 4000}.get(tier, 1500)
+
+
+def _tier_hint(tier: str, language_name: str) -> str:
+    if tier == "long":
+        return f"(ตอบเป็นภาษา {language_name} อย่างละเอียด มีโครงสร้าง หัวข้อ ตัวอย่างประกอบ ตอบยาวได้เต็มที่)"
+    if tier == "short":
+        return f"(ตอบเป็นภาษา {language_name} สั้นๆ กระชับ ตรงประเด็น)"
+    return f"(ตอบเป็นภาษา {language_name} ครบถ้วน มีโครงสร้างและตัวอย่างพอควร)"
 
 
 async def _call_groq_model(model: str, prompt: str, locale: str, name: str = None, system_prompt: str = None, api_key: str | None = None, base_url: str | None = None) -> str | None:
@@ -228,21 +263,22 @@ async def _call_groq_model(model: str, prompt: str, locale: str, name: str = Non
     mem_text = f"จำไว้: ผู้ใช้ชื่อ {name}. " if name else ""
 
     language_name = get_language_name(locale)
-    # มาตรฐาน AI: ตอบตรงภาษาผู้ใช้ + กระชับแต่ครบประเด็น (สั้น = ประหยัด token ทั้งขาเข้า/ออก)
+    tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
+    # มาตรฐาน AI: ตอบตรงภาษาผู้ใช้ + ครบถ้วนตามระดับความยาว
     std_system = (
         "You are VihokAI, a helpful assistant. Always reply in the user's language. "
-        "Be accurate, concise, and complete: cover the key points with one example when useful, no filler."
+        "Be accurate and complete: cover the key points with structure and examples. No filler."
     )
-    full_prompt = f"{mem_text}คำถาม: {prompt} (ตอบเป็นภาษา {language_name} เท่านั้น กระชับ)"
+    full_prompt = f"{mem_text}คำถาม: {prompt} {_tier_hint(tier, language_name)}"
 
     messages = [{"role": "system", "content": f"{std_system} {system_prompt or ''}".strip()}]
     messages.append({"role": "user", "content": full_prompt})
 
     # reasoning models (GPT-5/o-series): ใช้ max_completion_tokens + reasoning_effort แทน
     kwargs = (
-        {"max_completion_tokens": _nano_budget(), "reasoning_effort": "minimal"}
+        {"max_completion_tokens": _nano_budget(long=(tier == "long")), "reasoning_effort": "minimal"}
         if _is_reasoning_model(model)
-        else {"max_tokens": 600, "temperature": 0.6}
+        else {"max_tokens": _tier_tokens(tier), "temperature": 0.6}
     )
     response = await client.chat.completions.create(
         model=model,
@@ -314,15 +350,16 @@ async def call_gemini(prompt: str, locale: str, name: str = None, system_prompt:
             _gm = _gm[len("models/"):]
         model = genai.GenerativeModel(_gm)
         mem_text = f"ผู้ใช้ชื่อ {name}. " if name else ""
-        
+
         language_name = get_language_name(locale)
+        _tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
         full_prompt = f"""{mem_text}
 {system_prompt if system_prompt else ''}
 
 คำถาม: {prompt}
 
-ตอบเป็นภาษา {language_name} เท่านั้น อย่างละเอียดพอควร มีตัวอย่างประกอบ"""
-        
+{_tier_hint(_tier, language_name)}"""
+
         res = model.generate_content(full_prompt)
         return res.text
     except Exception as e:
@@ -358,18 +395,19 @@ async def call_openai(prompt: str, locale: str, name: str = None, system_prompt:
         )
         mem_text = f"User name is {name}. " if name else ""
 
+        _tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
         std_system = (
             "You are VihokAI, a helpful assistant. Always reply in the user's language. "
-            "Be accurate, concise, and complete: cover the key points with one example when useful, no filler."
+            "Be accurate and complete: cover the key points with structure and examples. No filler."
         )
         messages = [{"role": "system", "content": f"{std_system} {system_prompt or ''}".strip()}]
-        messages.append({"role": "user", "content": f"{mem_text}{prompt} (ตอบเป็นภาษา {get_language_name(locale)} เท่านั้น กระชับ) "})
+        messages.append({"role": "user", "content": f"{mem_text}{prompt} {_tier_hint(_tier, get_language_name(locale))} "})
 
         _om = os.getenv("OPENAI_MODEL", "gpt-5-nano")
         _okwargs = (
-            {"max_completion_tokens": _nano_budget(), "reasoning_effort": "minimal"}
+            {"max_completion_tokens": _nano_budget(long=(_tier == "long")), "reasoning_effort": "minimal"}
             if _is_reasoning_model(_om)
-            else {"max_tokens": 600, "temperature": 0.6}
+            else {"max_tokens": _tier_tokens(_tier), "temperature": 0.6}
         )
         response = await client.chat.completions.create(
             model=_om,
@@ -389,15 +427,16 @@ async def call_deepseek(prompt: str, locale: str, name: str = None, system_promp
         client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com/v1")
         mem_text = f"User name is {name}. " if name else ""
         
+        _tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": f"{mem_text}{prompt} (ตอบเป็นภาษา {get_language_name(locale)} เท่านั้น กระชับ) "})
-        
+        messages.append({"role": "user", "content": f"{mem_text}{prompt} {_tier_hint(_tier, get_language_name(locale))} "})
+
         response = await client.chat.completions.create(
-            model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+            model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
             messages=messages,
-            max_tokens=600,
+            max_tokens=_tier_tokens(_tier),
             temperature=0.6
         )
         return response.choices[0].message.content
@@ -413,15 +452,16 @@ async def call_kimi(prompt: str, locale: str, name: str = None, system_prompt: s
         client = AsyncOpenAI(api_key=KIMI_API_KEY, base_url="https://api.moonshot.ai/v1")
         mem_text = f"User name is {name}. " if name else ""
         
+        _tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": f"{mem_text}{prompt} (ตอบเป็นภาษา {get_language_name(locale)} เท่านั้น กระชับ) "})
-        
+        messages.append({"role": "user", "content": f"{mem_text}{prompt} {_tier_hint(_tier, get_language_name(locale))} "})
+
         response = await client.chat.completions.create(
             model=os.getenv("KIMI_MODEL", "kimi-k3"),
             messages=messages,
-            max_tokens=600,
+            max_tokens=_tier_tokens(_tier),
             temperature=1
         )
         return response.choices[0].message.content
@@ -437,13 +477,14 @@ async def call_claude(prompt: str, locale: str, name: str = None, system_prompt:
         client = AsyncAnthropic(api_key=CLAUDE_API_KEY)
         mem_text = f"User name is {name}. " if name else ""
         
-        full_prompt = f"{mem_text}{prompt} (ตอบเป็นภาษา {get_language_name(locale)} เท่านั้น กระชับ)"
+        _tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
+        full_prompt = f"{mem_text}{prompt} {_tier_hint(_tier, get_language_name(locale))}"
         if system_prompt:
             full_prompt = f"{system_prompt}\n\n{full_prompt}"
-        
+
         response = await client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=600,
+            max_tokens=_tier_tokens(_tier),
             messages=[{"role": "user", "content": full_prompt}]
         )
         return response.content[0].text
@@ -495,9 +536,9 @@ async def get_ai_answer(question: str, memories: list, locale: str, selected_ai:
     funcs = ai_map.get(selected_ai, ai_map["auto"])
     tasks = [func(clean_question, locale, name, system_prompt) for func in funcs]
     
-    # ✅ ตอบตัวแรกที่ได้ (ไม่ต้องรอทุกตัว) - เร็วขึ้น
+    # ✅ ตอบตัวแรกที่ได้ (ไม่ต้องรอทุกตัว) - เร็วขึ้น (เผื่อคำตอบยาว: 90 วิ)
     first_answer = None
-    timeout = 15  # ✅ สมดุล
+    timeout = 90
     
     try:
         for task in asyncio.as_completed(tasks):
