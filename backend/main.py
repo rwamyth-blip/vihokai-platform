@@ -207,6 +207,14 @@ def _is_reasoning_model(model: str) -> bool:
     return m.startswith("gpt-5") or m.startswith("o1") or m.startswith("o3") or m.startswith("o4")
 
 
+def _nano_budget() -> int:
+    """โควตา token ฝั่ง GPT-5-nano — default 1024 (พอสำหรับคำตอบมาตรฐาน, ประหยัดกว่า 2000 ~2x)"""
+    try:
+        return max(256, min(4000, int(os.getenv("NANO_BUDGET", "1024"))))
+    except ValueError:
+        return 1024
+
+
 async def _call_groq_model(model: str, prompt: str, locale: str, name: str = None, system_prompt: str = None, api_key: str | None = None, base_url: str | None = None) -> str | None:
     """เรียก Groq/OpenAI-compatible API ด้วย model ที่ระบุ — ใช้ร่วมกันระหว่าง call_groq / call_vihokai"""
     key = api_key or GROQ_API_KEY
@@ -217,22 +225,22 @@ async def _call_groq_model(model: str, prompt: str, locale: str, name: str = Non
         api_key=key,
         base_url=base_url or os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     )
-    mem_text = f"จำไว้: ผู้ใช้ชื่อ {name}" if name else ""
+    mem_text = f"จำไว้: ผู้ใช้ชื่อ {name}. " if name else ""
 
     language_name = get_language_name(locale)
-    full_prompt = f"""{mem_text}
-คำถาม: {prompt}
+    # มาตรฐาน AI: ตอบตรงภาษาผู้ใช้ + กระชับแต่ครบประเด็น (สั้น = ประหยัด token ทั้งขาเข้า/ออก)
+    std_system = (
+        "You are VihokAI, a helpful assistant. Always reply in the user's language. "
+        "Be accurate, concise, and complete: cover the key points with one example when useful, no filler."
+    )
+    full_prompt = f"{mem_text}คำถาม: {prompt} (ตอบเป็นภาษา {language_name} เท่านั้น กระชับ)"
 
-    ตอบเป็นภาษา {language_name} เท่านั้น อย่างเป็นธรรมชาติ กระชับได้ใจความ มีรายละเอียดพอเพียง ตอบประมาณ 300-500 คำ"""
-
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
+    messages = [{"role": "system", "content": f"{std_system} {system_prompt or ''}".strip()}]
     messages.append({"role": "user", "content": full_prompt})
 
     # reasoning models (GPT-5/o-series): ใช้ max_completion_tokens + reasoning_effort แทน
     kwargs = (
-        {"max_completion_tokens": 2000, "reasoning_effort": "minimal"}
+        {"max_completion_tokens": _nano_budget(), "reasoning_effort": "minimal"}
         if _is_reasoning_model(model)
         else {"max_tokens": 600, "temperature": 0.6}
     )
@@ -349,17 +357,24 @@ async def call_openai(prompt: str, locale: str, name: str = None, system_prompt:
             base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
         )
         mem_text = f"User name is {name}. " if name else ""
-        
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
+
+        std_system = (
+            "You are VihokAI, a helpful assistant. Always reply in the user's language. "
+            "Be accurate, concise, and complete: cover the key points with one example when useful, no filler."
+        )
+        messages = [{"role": "system", "content": f"{std_system} {system_prompt or ''}".strip()}]
         messages.append({"role": "user", "content": f"{mem_text}{prompt} (ตอบเป็นภาษา {get_language_name(locale)} เท่านั้น กระชับ) "})
-        
+
+        _om = os.getenv("OPENAI_MODEL", "gpt-5-nano")
+        _okwargs = (
+            {"max_completion_tokens": _nano_budget(), "reasoning_effort": "minimal"}
+            if _is_reasoning_model(_om)
+            else {"max_tokens": 600, "temperature": 0.6}
+        )
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=_om,
             messages=messages,
-            max_tokens=600,
-            temperature=0.6
+            **_okwargs
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -380,7 +395,7 @@ async def call_deepseek(prompt: str, locale: str, name: str = None, system_promp
         messages.append({"role": "user", "content": f"{mem_text}{prompt} (ตอบเป็นภาษา {get_language_name(locale)} เท่านั้น กระชับ) "})
         
         response = await client.chat.completions.create(
-            model="deepseek-chat",
+            model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
             messages=messages,
             max_tokens=600,
             temperature=0.6

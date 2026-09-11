@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 # temperature/max_tokens and needs max_completion_tokens + reasoning_effort.
 PROVIDERS = [
     {"name": "openai",   "key": "OPENAI_API_KEY",    "base_url": None,                               "model": "gpt-5-nano",
-     "params": {"max_completion_tokens": 2000, "reasoning_effort": "minimal"}},
+     "params": {"max_completion_tokens": int(os.getenv("NANO_BUDGET", "1024")), "reasoning_effort": "minimal"}},
     {"name": "groq",     "key": "GROQ_API_KEY",      "base_url": "https://api.groq.com/openai/v1",   "model": "openai/gpt-oss-120b",
      "params": {"temperature": 0.3}},
     {"name": "deepseek", "key": "DEEPSEEK_API_KEY",  "base_url": "https://api.deepseek.com/v1",      "model": "deepseek-v4-flash",
@@ -30,10 +30,10 @@ def _provider_config(provider: dict) -> dict:
     return cfg
 
 SYSTEM_PROMPT = (
-    "คุณคือ VihokAI ผู้ช่วยค้นคว้าจาก Global Library Gateway. "
-    "ตอบโดยใช้เฉพาะ Context ที่ให้มาเท่านั้น ห้ามอ้างว่าได้ติดต่อห้องสมุด/API ภายนอกด้วยตัวเอง "
-    "เพราะ Python (Library Router) เป็นผู้สืบค้นและเตรียมข้อมูลให้แล้ว. "
-    "ถ้า Context ไม่มีข้อมูล ให้บอกตามตรงว่าไม่พบ และอ้างอิงแหล่งที่มาจาก Context ทุกครั้ง"
+    "You are VihokAI, a helpful research assistant. Always reply in the user's language. "
+    "Be accurate, concise, and complete: cover the key points with one example when useful, no filler. "
+    "Answer using ONLY the given Context — never claim to have contacted libraries/APIs yourself "
+    "(Python Library Router already retrieved it). If Context lacks the info, say so and cite sources from Context."
 )
 
 
