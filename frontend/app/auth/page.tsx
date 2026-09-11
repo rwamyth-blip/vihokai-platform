@@ -77,25 +77,28 @@ export default function AuthPage() {
       }
 
       saveSession(data.token, data.user)
-      window.location.href = nextPath || "/"
+      // login สำเร็จ → กลับหน้าที่ขอไว้ หรือเข้าแชท /th (หน้า "/" คือ landing สาธารณะ)
+      window.location.href = nextPath || "/th"
     } catch {
       setError("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่")
       setLoading(false)
     }
   }
 
-  // รับ callback จาก Backend (?token=...&user=...) และอ่าน ?next= เพื่อกลับไปที่เดิม
+  // รับ callback จาก Backend (?token=...&user=...) และอ่าน ?next=/?mode= เพื่อกลับไปที่เดิม/เปิดโหมดสมัคร
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const next = urlParams.get("next") || ""
     setNextPath(next)
+    // /auth?mode=register → เปิดหน้า Sign up ทันที (ลิงก์จาก landing)
+    if (urlParams.get("mode") === "register") setMode("register")
 
     const token = urlParams.get("token")
     const user = urlParams.get("user")
 
     if (token && user) {
       saveSession(token, user)
-      window.location.href = next || "/"
+      window.location.href = next || "/th"
     }
   }, [])
 

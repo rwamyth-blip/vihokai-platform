@@ -42,9 +42,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ✅ ถ้า pathname เป็น "/" ให้ redirect ไป /th
+  // ✅ หน้าแรก "/" = landing สาธารณะ (ไม่ต้อง login) — แชทอยู่ /th (บังคับ login ในเพจ)
   if (pathname === "/") {
-    return NextResponse.redirect(new URL(`/${DEFAULT_LOCALE}`, request.url))
+    return NextResponse.rewrite(new URL("/home", request.url))
+  }
+  // /home เข้าตรงได้ (landing สาธารณะเช่นกัน)
+  if (pathname === "/home" || pathname.startsWith("/home/")) {
+    return NextResponse.next()
   }
 
   // ✅ ตรวจสอบว่า locale ถูกต้องหรือไม่
