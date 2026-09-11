@@ -10,6 +10,8 @@ Env (มีค่า default ใช้งานได้ทันที):
   API_KEY_RATE_MAX    default 60   (requests ต่อ window)
   API_KEY_RATE_WINDOW default 3600 (วินาที)
   REDIS_URL           default redis://localhost:6379/0 (ลองต่อ ถ้าไม่ได้ใช้ fallback)
+  FREE_QUOTA_MAX      default 55   (โควตาแผนฟรี — โปรโมท)
+  FREE_QUOTA_WINDOW   default 21600 (วินาที = 6 ชม. — ครบแล้วรีเซ็ตใหม่)
 """
 
 from __future__ import annotations
@@ -29,6 +31,9 @@ except Exception:  # pragma: no cover
 RATE_MAX = int(os.getenv("API_KEY_RATE_MAX", "60"))
 RATE_WINDOW = int(os.getenv("API_KEY_RATE_WINDOW", "3600"))
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# แผนฟรี (โปรโมท): 55 ครั้ง / 6 ชม. — ครบแล้วรีเซ็ตอัตโนมัติ (sliding window หมดอายุเอง)
+FREE_QUOTA_MAX = int(os.getenv("FREE_QUOTA_MAX", "55"))
+FREE_QUOTA_WINDOW = int(os.getenv("FREE_QUOTA_WINDOW", "21600"))  # 6 ชม. = 21600 วิ
 
 _MEM: dict[str, list[float]] = {}
 
@@ -38,16 +43,26 @@ def _sha256(raw: str) -> str:
 
 
 def issue_api_key(user_id: str, name: str = "default", plan: str = "free",
-                  quota_per_hour: int = 60) -> dict:
-    """สร้าง key ใหม่ + บันทึก hash ลง Supabase. คืน dict ที่มี `api_key` ครั้งเดียว."""
+                  quota_per_hour: int | None = None, quota_window: int | None = None) -> dict:
+    """สร้าง key ใหม่ + บันทึก hash ลง Supabase. คืน dict ที่มี `api_key` ครั้งเดียว.
+    plan=free → โควตา FREE_QUOTA_MAX / FREE_QUOTA_WINDOW (55 ครั้ง/6 ชม.)
+    plan อื่น → quota_per_hour ที่ส่งมา (default 60/ชม.)
+    """
     raw = "vk_" + secrets.token_hex(16)
+    if (plan or "free") == "free":
+        quota = FREE_QUOTA_MAX
+        window = quota_window or FREE_QUOTA_WINDOW
+    else:
+        quota = int(quota_per_hour or 60)
+        window = quota_window or RATE_WINDOW
     row = {
         "user_id": str(user_id),
         "name": name or "default",
         "key_prefix": raw[:10],
         "key_hash": _sha256(raw),
         "plan": plan,
-        "quota_per_hour": int(quota_per_hour or 60),
+        "quota_per_hour": quota,
+        "quota_window": window,
         "is_active": True,
     }
     if supabase is None:
@@ -145,20 +160,55 @@ def verify_api_key_value(raw: str) -> dict:
     return row
 
 
-def require_api_key(x_api_key: str = Header(default="")) -> dict:
-    """FastAPI dependency: ตรวจ X-API-Key + rate limit (quota ของ key ชนะค่า default)."""
-    row = verify_api_key_value(x_api_key)
+def _quota_for_row(row: dict) -> tuple[int, int, str]:
+    """คืน (limit, window, plan) — แผน free ใช้ FREE_* (55/6ชม.), แผนอื่นใช้ quota ของ key."""
+    plan = (row.get("plan") or "free").lower()
+    if plan == "free":
+        return FREE_QUOTA_MAX, FREE_QUOTA_WINDOW, plan
     limit = int(row.get("quota_per_hour") or RATE_MAX)
-    rkey = f"vihokai:ratelimit:{row.get('id')}"
+    window = int(row.get("quota_window") or RATE_WINDOW)
+    return limit, window, plan
+
+
+def quota_status(row_id: str, limit: int, window: int) -> dict:
+    """โควตาคงเหลือของ key (ใช้นับ sliding window ปัจจุบัน) — ไม่ตัดโควตา."""
+    now = time.time()
     client = _redis_client()
     if client is not None:
         try:
-            _check_rate_limit_redis(client, rkey, limit, RATE_WINDOW)
-        except HTTPException:
-            raise
+            rkey = f"vihokai:ratelimit:{row_id}"
+            count = client.zcount(rkey, now - window, now)
+            return {"limit": limit, "used": int(count or 0), "remaining": max(0, limit - int(count or 0)), "window_sec": window}
         except Exception:
-            _check_rate_limit_mem(rkey, limit, RATE_WINDOW)
-    else:
-        _check_rate_limit_mem(rkey, limit, RATE_WINDOW)
+            pass
+    bucket = _MEM.get(f"vihokai:ratelimit:{row_id}", [])
+    used = sum(1 for t in bucket if t >= now - window)
+    return {"limit": limit, "used": used, "remaining": max(0, limit - used), "window_sec": window}
+
+
+def require_api_key(x_api_key: str = Header(default="")) -> dict:
+    """FastAPI dependency: ตรวจ X-API-Key + rate limit (quota ของ key ชนะค่า default).
+    แผน free: 55 ครั้ง / 6 ชม. ครบแล้ว 429 — รอ window หมดอายุแล้วใช้ต่อได้ (รีเซ็ตอัตโนมัติ).
+    """
+    row = verify_api_key_value(x_api_key)
+    limit, window, plan = _quota_for_row(row)
+    rkey = f"vihokai:ratelimit:{row.get('id')}"
+    client = _redis_client()
+    try:
+        if client is not None:
+            try:
+                _check_rate_limit_redis(client, rkey, limit, window)
+            except HTTPException:
+                raise
+            except Exception:
+                _check_rate_limit_mem(rkey, limit, window)
+        else:
+            _check_rate_limit_mem(rkey, limit, window)
+    except HTTPException as e:
+        # แนบข้อมูลโควตาให้ client รู้ว่าต้องรอเท่าไหร่ (โปรโมท: บอกชัดว่ารีเซ็ตทุก 6 ชม.)
+        detail = e.detail if isinstance(e.detail, dict) else {"message": str(e.detail)}
+        detail.update({"quota": {"plan": plan, "limit": limit, "window_sec": window, "reset_note": "free plan resets every 6 hours"}})
+        raise HTTPException(status_code=e.status_code, detail=detail)
     _touch_last_used(row.get("id"))
+    row["quota"] = {"plan": plan, "limit": limit, "window_sec": window}
     return row
