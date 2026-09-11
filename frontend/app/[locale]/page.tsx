@@ -580,8 +580,8 @@ const REGION_NAMES: any = {
   australia: "🌏 โอเชียเนีย / Oceania",
 }
 
-type Message = { role: string; content: string; id: string }
-type ChatItem = { id: string; title: string; group: string; messages: Message[] }
+type Message = { role: string; content: string; id: string; timestamp?: string }
+type ChatItem = { id: string; title: string; group: string; messages: Message[]; created_at?: string }
 
 // ===== AI Models =====
 // engine = ชื่อโมเดลจริงบน backend (อ้างอิง META_AI_MODEL/GROQ_MODEL/OPENAI_MODEL/DEEPSEEK_MODEL/KIMI_MODEL)
@@ -608,11 +608,27 @@ const AI_TOOLS = [
 
 // API_BASE / apiFetch มาจาก @/lib/api — ที่เดียวทั้งแอป
 
-// ===== Timezone helpers: backend ส่ง UTC ISO → แสดงตาม timezone เครื่องผู้ใช้ =====
+// ===== Timezone helpers: backend ส่ง UTC ISO → แสดงตาม timezone เครื่องผู้ใช้ (Windows/มือถือ) =====
+// กฎ: backend เก็บ UTC เสมอ, frontend แปลงเป็นเวลาท้องถิ่นตอนแสดงเท่านั้น (ห้าม hardcode เช่น "10:30")
 function toLocalDate(isoDate?: string): Date | null {
   if (!isoDate) return null
   const d = new Date(isoDate)
   return Number.isNaN(d.getTime()) ? null : d
+}
+
+function formatMessageTime(isoDate?: string): string {
+  const d = toLocalDate(isoDate)
+  if (!d) return ""
+  // เวลาสั้นแบบแชททั่วไป (HH:MM ตาม timezone เครื่อง) — ถ้าไม่ใช่ของวันนี้เติมวันที่ด้วย
+  const now = new Date()
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  if (sameDay) {
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  }
+  return d.toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
 }
 
 function formatChatTime(isoDate?: string, locale = "th-TH"): string {
@@ -748,10 +764,12 @@ export default function Page() {
           id: conv.id,
           title: conv.title || t.newChat,
           group: groupChatByDate(conv.created_at),
+          created_at: conv.created_at,
           messages: (conv.messages || []).map((m: any, i: number) => ({
             role: m.role,
             content: m.content,
             id: `${conv.id}-${i}`,
+            timestamp: m.timestamp || conv.created_at,
           })),
         }))
 
@@ -869,7 +887,7 @@ export default function Page() {
   const send = async () => {
     if (!input.trim() || isThinking || isStreaming) return
     const q = input
-    const userMsg: Message = { role: "user", content: q, id: Date.now().toString() }
+    const userMsg: Message = { role: "user", content: q, id: Date.now().toString(), timestamp: new Date().toISOString() }
 
     let targetChatId = currentChatId
     if (!targetChatId) {
@@ -918,10 +936,11 @@ export default function Page() {
         let pending = ""
 
         const aiMsgId = (Date.now() + 1).toString()
+        const aiMsgTs = new Date().toISOString()
         setChats((prev) =>
           prev.map((c) => {
             if (c.id === targetChatId) {
-              return { ...c, messages: [...c.messages, { role: "assistant", content: "", id: aiMsgId }] }
+              return { ...c, messages: [...c.messages, { role: "assistant", content: "", id: aiMsgId, timestamp: aiMsgTs }] }
             }
             return c
           }),
@@ -1034,6 +1053,7 @@ export default function Page() {
         role: "assistant",
         content: content,
         id: (Date.now() + 1).toString(),
+        timestamp: new Date().toISOString(),
       }
 
       setChats((prev) =>
@@ -1051,6 +1071,7 @@ export default function Page() {
         role: "assistant",
         content: `❌ เกิดข้อผิดพลาด: ${error}`,
         id: (Date.now() + 1).toString(),
+        timestamp: new Date().toISOString(),
       }
       setChats((prev) =>
         prev.map((c) => {
@@ -1125,7 +1146,7 @@ export default function Page() {
                   </p>
                 </div>
                 <p className={`mt-1 text-[10px] text-slate-400 dark:text-white/30 ${isUser ? "text-right" : ""}`}>
-                  {index === 0 ? "10:30" : `${index + 1} min ago`}
+                  {formatMessageTime(m.timestamp)}
                 </p>
               </div>
               {isUser && (
@@ -1608,7 +1629,7 @@ export default function Page() {
                       <MessageSquare size={15} className={currentChat?.id === chat.id ? "text-orange-500" : "text-slate-400 dark:text-white/30"} />
                       <span className="flex-1 truncate">{chat.title}</span>
                       <span className="text-[9px] text-slate-400 dark:text-white/30">
-                        {index === 0 ? "10:30" : `${index + 1}d`}
+                        {formatChatTime(chat.created_at)}
                       </span>
                     </button>
                   ))}
