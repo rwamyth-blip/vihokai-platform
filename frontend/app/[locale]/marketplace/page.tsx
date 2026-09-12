@@ -5,7 +5,7 @@
 import { useMemo, useRef, useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
-  ArrowLeft, Check, Copy, CreditCard, QrCode, X, Zap, Sparkles,
+  ArrowLeft, Check, Construction, Copy, CreditCard, QrCode, X, Zap, Sparkles,
   MessageCircle, Cpu, FileText, Database, Timer, ShieldCheck, Layers,
 } from "lucide-react"
 import { fontForLocale } from "@/components/locale"
@@ -232,6 +232,14 @@ export default function MarketplacePage() {
           <p className="mt-4 text-[14px] md:text-[15px] leading-6 text-zinc-400 max-w-[560px]">
             VihokAI แยกขาย 5 โมเดลตามงานจริง — แชทไทยลื่นๆ เอา SIRI, งาน Agent เร็วๆ เอา Lightning, อ่านเอกสารยาวเอา 1M, งานโค้ดยากๆ เอา PRO 120B, Multimodal แรงๆ เอา Z Flash แต่ละตัวมีคีย์แยก ตัดบิลแยก
           </p>
+          {/* อยู่ภายใต้การก่อสร้าง — ยังไม่มีระบบจ่ายเงินจริง */}
+          <div className="mt-5 flex items-start gap-3 rounded-[16px] border border-amber-500/30 bg-amber-500/10 p-4">
+            <Construction size={20} className="shrink-0 text-amber-400" />
+            <div className="text-[12.5px] leading-5">
+              <div className="font-bold text-amber-300">🚧 อยู่ภายใต้การก่อสร้าง — รอเปิดตัวเร็วๆ นี้</div>
+              <div className="mt-1 text-zinc-300">หน้านี้คือ <span className="font-bold text-white">Mockup</span> สำหรับดูดีไซน์และโฟลว์เท่านั้น — <span className="font-bold text-white">ยังไม่มีระบบจ่ายเงินจริง</span> ปุ่ม QR/ตัดบัตรเป็นปุ่มจำลอง ไม่มีการตัดเงิน ไม่มีการออกคีย์จริง</div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
@@ -287,13 +295,13 @@ export default function MarketplacePage() {
                   <div className="flex-1" />
                   <div className="mt-5 grid grid-cols-2 gap-2">
                     <button onClick={() => open(mm, "qr")} className="inline-flex items-center justify-center gap-1.5 h-10 rounded-xl bg-white text-black text-[13px] font-medium hover:bg-zinc-100 transition">
-                      <QrCode size={16} /> จ่าย QR
+                      <QrCode size={16} /> จ่าย QR <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-200 text-zinc-600 font-bold">MOCK</span>
                     </button>
                     <button onClick={() => open(mm, "card")} className="inline-flex items-center justify-center gap-1.5 h-10 rounded-xl bg-zinc-800 border border-zinc-700 text-[13px] font-medium text-zinc-100 hover:bg-zinc-700 transition">
-                      <CreditCard size={16} /> ตัดบัตร
+                      <CreditCard size={16} /> ตัดบัตร <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400 font-bold">MOCK</span>
                     </button>
                   </div>
-                  <div className="mt-2 text-center text-[10px] text-zinc-500">PromptPay • Omise • ออกบิลได้</div>
+                  <div className="mt-2 text-center text-[10px] text-zinc-500">Mockup — ยังไม่ตัดเงินจริง • รอเปิดตัวเร็วๆ นี้</div>
                 </div>
               </div>
             )
@@ -355,8 +363,8 @@ export default function MarketplacePage() {
                       <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1">PromptPay Payload (เบอร์ mock — ต่อเบอร์ร้านจริงก่อนใช้งาน)</div>
                       <div className="font-mono text-[10px] leading-4 text-zinc-300 break-all">{payload}</div>
                     </div>
-                    <button onClick={pay} className="mt-4 w-full h-11 rounded-xl bg-white text-black text-[14px] font-semibold hover:bg-zinc-100">ฉันจ่ายแล้ว • ออก API Key เลย</button>
-                    <div className="mt-2 text-[11px] text-zinc-500 text-center">จำลองจ่ายสำเร็จ ระบบจะออกคีย์ทันทีสำหรับโมเดลนี้เท่านั้น</div>
+                    <button onClick={pay} className="mt-4 w-full h-11 rounded-xl bg-white text-black text-[14px] font-semibold hover:bg-zinc-100">ฉันจ่ายแล้ว (จำลอง) • ออก API Key เลย</button>
+                    <div className="mt-2 text-[11px] text-zinc-500 text-center">Mockup — ไม่มีการตัดเงินจริง ระบบจะออกคีย์จำลองทันที</div>
                   </div>
                 ) : (
                   <div className="rounded-[18px] bg-zinc-900 border border-zinc-800 p-4">
@@ -369,7 +377,7 @@ export default function MarketplacePage() {
                         <div><div className="text-[11px] text-zinc-500 mb-1">CVC</div><input placeholder="123" className="w-full h-10 rounded-xl bg-zinc-800 border border-zinc-700 px-3 text-[13px] outline-none" /></div>
                       </div>
                     </div>
-                    <button onClick={pay} className="mt-5 w-full h-11 rounded-xl bg-white text-black text-[14px] font-semibold hover:bg-zinc-100">จ่าย ฿{sel.price} บาท • เปิดใช้งาน</button>
+                    <button onClick={pay} className="mt-5 w-full h-11 rounded-xl bg-white text-black text-[14px] font-semibold hover:bg-zinc-100">จ่าย ฿{sel.price} บาท (จำลอง) • เปิดใช้งาน</button>
                     <div className="mt-3 flex items-center gap-2 text-[11px] text-zinc-500"><ShieldCheck size={14} /> จำลอง Omise Tokenization • ไม่มีการตัดเงินจริงในเดโม่</div>
                   </div>
                 )}
