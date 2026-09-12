@@ -396,6 +396,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     badgeNew: "ใหม่",
     navAllChats: "แชททั้งหมด",
     navModel: "AI โมเดล",
+    navVihokModel: "VihokAI Model",
     navImage: "สร้างภาพ (AI Image)",
     navDoc: "สร้างเอกสาร / สรุป",
     navAnalyze: "วิเคราะห์ไฟล์",
@@ -429,6 +430,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     badgeNew: "NEW",
     navAllChats: "All Chats",
     navModel: "AI Models",
+    navVihokModel: "VihokAI Model",
     navImage: "Create Image (AI Image)",
     navDoc: "Create Document / Summarize",
     navAnalyze: "Analyze Files",
@@ -462,6 +464,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     badgeNew: "新",
     navAllChats: "全部聊天",
     navModel: "AI 模型",
+    navVihokModel: "VihokAI Model",
     navImage: "AI 绘图",
     navDoc: "生成文档 / 摘要",
     navAnalyze: "文件分析",
@@ -495,6 +498,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     badgeNew: "新",
     navAllChats: "すべてのチャット",
     navModel: "AIモデル",
+    navVihokModel: "VihokAI Model",
     navImage: "AI画像生成",
     navDoc: "ドキュメント生成 / 要約",
     navAnalyze: "ファイル分析",
@@ -528,6 +532,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     badgeNew: "새로운",
     navAllChats: "모든 채팅",
     navModel: "AI 모델",
+    navVihokModel: "VihokAI Model",
     navImage: "AI 이미지 생성",
     navDoc: "문서 생성 / 요약",
     navAnalyze: "파일 분석",
@@ -726,6 +731,17 @@ export default function Page() {
     }
     localStorage.setItem("vihok_locale", targetLocale)
   }, [urlLocale, locale])
+
+  // ✅ รับค่า ?model= จากหน้า VihokAI Model (/models) แล้วเลือกโมเดลให้อัตโนมัติ
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const wanted = new URLSearchParams(window.location.search).get("model")
+    if (!wanted) return
+    if (AI_MODELS.some((m) => m.id === wanted)) {
+      setSelectedAI(wanted)
+      localStorage.setItem("vihok_model", wanted)
+    }
+  }, [])
 
   useEffect(() => {
     // ยังไม่มี token = กำลังถูกเดือนไปหน้า login — ไม่ต้องยิง API
@@ -1268,6 +1284,13 @@ export default function Page() {
             onClick={() => router.push(`/${locale}/library`)}
           />
           <NavItem icon={<Sparkles size={19} />} label={t.navModel} badge={t.badgeNew} />
+          {/* ลูกเมนูของ AI Model — หน้า VihokAI Model */}
+          <NavItem
+            icon={<Crown size={17} />}
+            label={t.navVihokModel}
+            sub
+            onClick={() => router.push(`/${locale}/models`)}
+          />
           <NavItem icon={<ImageIcon size={19} />} label={t.navImage} />
           <NavItem icon={<FileText size={19} />} label={t.navDoc} />
           <NavItem icon={<BarChart3 size={19} />} label={t.navAnalyze} />
@@ -1823,20 +1846,24 @@ function NavItem({
   label,
   active = false,
   badge,
+  sub = false,
   onClick,
 }: {
   icon: ReactNode
   label: string
   active?: boolean
   badge?: string
+  /** ลูกเมนู — ย่อหน้าต่าง + ตัวอักษรเล็กลง เพื่อให้เห็นว่าอยู่ภายใต้เมนูแม่ */
+  sub?: boolean
   onClick?: () => void
 }) {
   return (
     <button
       onClick={onClick}
       className={`
-        flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm
+        flex w-full items-center gap-3 rounded-xl text-sm
         transition
+        ${sub ? "ml-4 w-[calc(100%-1rem)] px-3 py-2.5 text-[13px]" : "px-4 py-3"}
         ${
           active
             ? "bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-500/20 dark:to-orange-500/10 font-semibold text-orange-600 dark:text-orange-400"

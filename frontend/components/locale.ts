@@ -152,3 +152,187 @@ export function libCopyForLocale(locale?: string): LibCopy {
   const base = (locale || "th").toLowerCase().split("-")[0]
   return LIB_COPY[base] || LIB_COPY.en
 }
+
+// ===== Locale → ข้อความ UI หน้า VihokAI Model (ตามภาษาหน้า main) =====
+type ModelCopy = {
+  back: string
+  eyebrow: string
+  title: string
+  subtitle: string
+  coreTitle: string
+  coreSub: string
+  teamTitle: string
+  teamSub: string
+  compareTitle: string
+  compareSub: string
+  useModel: string
+  useTeam: string
+  online: string
+  standby: string
+  role: string
+  engine: string
+  bestFor: string
+  speed: string
+  quality: string
+  cost: string
+  low: string
+  medium: string
+  high: string
+  fast: string
+  balanced: string
+  deep: string
+  note: string
+}
+
+const MODEL_COPY: Record<string, ModelCopy> = {
+  th: {
+    back: "กลับไปแชท",
+    eyebrow: "VIHOKAI MODEL SYSTEM",
+    title: "VihokAI Model",
+    subtitle: "ทีม AI หลายโมเดลในระบบเดียว — เลือกตัวที่ถนัดงาน แล้วให้หัวหน้าทีมรวมคำตอบ",
+    coreTitle: "โมเดลหลัก",
+    coreSub: "โมเดลที่พร้อมใช้งานจริงบนแพลตฟอร์ม (อ้างอิง engine บน backend)",
+    teamTitle: "AI Team",
+    teamSub: "แต่ละตัวรับงานที่ตัวเองถนัด แล้วส่งผลให้ Orchestrator รวมเป็นคำตอบเดียว",
+    compareTitle: "เปรียบเทียบความสามารถ",
+    compareSub: "เลือกโมเดลให้ตรงกับงาน — เร็ว / สมดุล / วิเคราะห์ลึก",
+    useModel: "ใช้โมเดลนี้",
+    useTeam: "ใช้ทีม AI (Auto)",
+    online: "ออนไลน์",
+    standby: "สำรอง",
+    role: "บทบาท",
+    engine: "Engine",
+    bestFor: "เหมาะกับ",
+    speed: "ความเร็ว",
+    quality: "คุณภาพ",
+    cost: "ต้นทุน",
+    low: "ต่ำ",
+    medium: "กลาง",
+    high: "สูง",
+    fast: "เร็ว",
+    balanced: "สมดุล",
+    deep: "วิเคราะห์ลึก",
+    note: "หมายเหตุ: ชื่อโมเดลที่แสดงคือ engine จริงที่เรียกผ่าน backend — หากผู้ให้บริการเปลี่ยนชื่อ จะอัปเดตที่ config โดยไม่ต้องแก้หน้าเว็บ",
+  },
+  en: {
+    back: "Back to chat",
+    eyebrow: "VIHOKAI MODEL SYSTEM",
+    title: "VihokAI Model",
+    subtitle: "A multi-model AI team in one system — pick the specialist, let the orchestrator merge the answer",
+    coreTitle: "Core Models",
+    coreSub: "Models actually available on the platform (real backend engines)",
+    teamTitle: "AI Team",
+    teamSub: "Each agent handles what it does best, then the Orchestrator merges one final answer",
+    compareTitle: "Capability Comparison",
+    compareSub: "Match the model to the job — fast / balanced / deep reasoning",
+    useModel: "Use this model",
+    useTeam: "Use AI Team (Auto)",
+    online: "Online",
+    standby: "Standby",
+    role: "Role",
+    engine: "Engine",
+    bestFor: "Best for",
+    speed: "Speed",
+    quality: "Quality",
+    cost: "Cost",
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+    fast: "Fast",
+    balanced: "Balanced",
+    deep: "Deep reasoning",
+    note: "Note: model names shown are the real engines called through the backend — if a provider renames a model, update config only, no page change needed.",
+  },
+  zh: {
+    back: "返回聊天",
+    eyebrow: "VIHOKAI MODEL SYSTEM",
+    title: "VihokAI Model",
+    subtitle: "多模型 AI 团队集于一个系统 — 选择专长模型，由总控合并最终答案",
+    coreTitle: "核心模型",
+    coreSub: "平台上真实可用的模型（对应后端 engine）",
+    teamTitle: "AI 团队",
+    teamSub: "每个智能体负责自己擅长的部分，再由 Orchestrator 合并为单一答案",
+    compareTitle: "能力对比",
+    compareSub: "按任务选择模型 — 快速 / 均衡 / 深度推理",
+    useModel: "使用此模型",
+    useTeam: "使用 AI 团队 (Auto)",
+    online: "在线",
+    standby: "待命",
+    role: "角色",
+    engine: "引擎",
+    bestFor: "适合",
+    speed: "速度",
+    quality: "质量",
+    cost: "成本",
+    low: "低",
+    medium: "中",
+    high: "高",
+    fast: "快速",
+    balanced: "均衡",
+    deep: "深度推理",
+    note: "说明：显示的模型名称为后端实际调用的 engine — 若服务商改名，只需更新配置，无需修改页面。",
+  },
+  ja: {
+    back: "チャットに戻る",
+    eyebrow: "VIHOKAI MODEL SYSTEM",
+    title: "VihokAI Model",
+    subtitle: "複数モデルのAIチームを1つのシステムに — 得意なモデルを選び、統括が答えを統合",
+    coreTitle: "コアモデル",
+    coreSub: "プラットフォームで実際に利用可能なモデル（バックエンドのengine）",
+    teamTitle: "AIチーム",
+    teamSub: "各エージェントが得意分野を担当し、Orchestratorが1つの回答に統合します",
+    compareTitle: "能力比較",
+    compareSub: "タスクに合わせて選択 — 高速 / バランス / 深い推論",
+    useModel: "このモデルを使う",
+    useTeam: "AIチームを使う (Auto)",
+    online: "オンライン",
+    standby: "待機",
+    role: "役割",
+    engine: "エンジン",
+    bestFor: "得意分野",
+    speed: "速度",
+    quality: "品質",
+    cost: "コスト",
+    low: "低",
+    medium: "中",
+    high: "高",
+    fast: "高速",
+    balanced: "バランス",
+    deep: "深い推論",
+    note: "注：表示されるモデル名はバックエンドが実際に呼び出すengineです — 提供元が名称変更した場合は設定のみ更新すればOKです。",
+  },
+  ko: {
+    back: "채팅으로 돌아가기",
+    eyebrow: "VIHOKAI MODEL SYSTEM",
+    title: "VihokAI Model",
+    subtitle: "여러 모델의 AI 팀을 하나의 시스템에 — 전문 모델을 고르면 오케스트레이터가 답을 통합합니다",
+    coreTitle: "핵심 모델",
+    coreSub: "플랫폼에서 실제 사용 가능한 모델 (백엔드 engine 기준)",
+    teamTitle: "AI 팀",
+    teamSub: "각 에이전트가 잘하는 일을 맡고 Orchestrator가 하나의 답으로 통합합니다",
+    compareTitle: "역량 비교",
+    compareSub: "작업에 맞게 선택 — 빠름 / 균형 / 심층 추론",
+    useModel: "이 모델 사용",
+    useTeam: "AI 팀 사용 (Auto)",
+    online: "온라인",
+    standby: "대기",
+    role: "역할",
+    engine: "엔진",
+    bestFor: "적합",
+    speed: "속도",
+    quality: "품질",
+    cost: "비용",
+    low: "낮음",
+    medium: "보통",
+    high: "높음",
+    fast: "빠름",
+    balanced: "균형",
+    deep: "심층 추론",
+    note: "참고: 표시된 모델명은 백엔드가 실제 호출하는 engine입니다 — 제공사가 이름을 바꾸면 설정만 수정하면 됩니다.",
+  },
+}
+
+export function modelCopyForLocale(locale?: string): ModelCopy {
+  const base = (locale || "th").toLowerCase().split("-")[0]
+  return MODEL_COPY[base] || MODEL_COPY.en
+}
