@@ -198,6 +198,22 @@ export default function MarketplacePage() {
   return (
     <div className="min-h-screen bg-[#070709] text-zinc-100" style={{ fontFamily }}>
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.08),_transparent_60%),linear-gradient(to_bottom,_transparent,_rgba(0,0,0,0.4))] z-0" />
+      {/* แถบ DEBUG MODE — ลายก่อสร้างเหลืองดำ + ข้อความ mockup */}
+      <div className="relative z-20 overflow-hidden border-b border-amber-400/40 bg-[repeating-linear-gradient(-45deg,#fbbf24_0_18px,#0a0a0a_18px_36px)]">
+        <div className="mx-auto flex max-w-[1280px] items-center gap-2 overflow-x-auto whitespace-nowrap px-4 py-1.5 text-[11px] font-bold tracking-wide">
+          <span className="rounded bg-black px-2 py-0.5 text-amber-300">⚙️ DEBUG MODE</span>
+          <span className="rounded bg-black/85 px-2 py-0.5 text-white">รอเปิดตัวเร็วๆ นี้</span>
+          <span className="text-black">•</span>
+          <span className="rounded bg-black/85 px-2 py-0.5 text-white">รอเปิดตัวเร็วๆ นี้</span>
+          <span className="text-black">/</span>
+          <span className="rounded bg-black/85 px-2 py-0.5 text-white">อยู่ภายใต้การก่อสร้าง</span>
+          <span className="text-black">/</span>
+          <span className="rounded bg-black/85 px-2 py-0.5 text-white">ยังไม่มีระบบจ่ายเงินจริง</span>
+          <span className="text-black">●</span>
+          <span className="rounded bg-black px-2 py-0.5 text-amber-300">นี่คือ MOCKUP สำหรับเทสสอนเท่านั้น</span>
+          <span className="ml-auto hidden rounded bg-black px-2 py-0.5 text-zinc-300 md:inline">v8.1-debug • API: IN DEVELOPMENT</span>
+        </div>
+      </div>
       <div className="relative z-10 max-w-[1280px] mx-auto px-5 md:px-8 pt-8 pb-20">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
