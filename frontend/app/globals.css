@@ -4,6 +4,37 @@
 :root { color-scheme: light dark; }
 body { background: #0f0f0f; }
 
+/* ===== Kola Swift FX: ไฟวิ่งขอบส้ม + ตากระพริบไฟลุกโชน ===== */
+@keyframes kola-border-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes kola-eye-blink {
+  0%, 92%, 100% { opacity: 1; transform: scaleY(1); }
+  94%, 96% { opacity: 0.15; transform: scaleY(0.08); }
+}
+@keyframes kola-eye-flare {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+@keyframes kola-ember-rise {
+  0% { opacity: 0; transform: translateY(8px) scale(0.6); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-46px) scale(1.1); }
+}
+.kola-fx-border {
+  background: linear-gradient(110deg, rgba(251,146,60,.55), rgba(251,146,60,.08), rgba(56,189,248,.35), rgba(251,146,60,.55));
+  background-size: 220% 220%;
+  animation: kola-border-flow 3.2s ease-in-out infinite;
+}
+.kola-fx-eye { animation: kola-eye-blink 4.6s ease-in-out infinite; transform-origin: center; }
+.kola-fx-flare { animation: kola-eye-flare 1.8s ease-in-out infinite; }
+.kola-fx-ember { animation: kola-ember-rise 2.6s ease-in infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .kola-fx-border, .kola-fx-eye, .kola-fx-flare, .kola-fx-ember { animation: none; }
+}
+
 /* Android contrast hotfix: ฟองพื้นอ่อนต้องตัวอักษรเข้มเสมอ */
 div[class*="from-orange-50"], div[class*="from-blue-50"],
 div[class*="to-orange-100"], div[class*="to-slate-50"] {

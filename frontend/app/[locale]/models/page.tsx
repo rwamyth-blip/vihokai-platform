@@ -215,7 +215,30 @@ export default function VihokAIModelPage() {
 
           <div className="grid gap-6 lg:grid-cols-2">
             {models.map((card) => (
-              <div key={card.id} className={`group overflow-hidden rounded-3xl border ${card.color === "cyan" ? "border-cyan-400/30" : "border-orange-400/30"} bg-[#06152b]`}>
+              <div key={card.id} className={`group overflow-hidden rounded-3xl border ${card.color === "cyan" ? "border-cyan-400/30" : "border-orange-400/30"} bg-[#06152b] ${card.id === "kola_swift" ? "kola-fx-border border-transparent p-[2px]" : ""}`}>
+                {card.id === "kola_swift" ? (
+                  <div className="grid overflow-hidden rounded-3xl bg-[#06152b] md:grid-cols-2">
+                    <KolaSwiftArt image={card.image} title={card.title} badge={card.type} />
+                    <div className="p-7">
+                      <div className="text-xs font-bold tracking-[0.2em] text-slate-500">{card.subtitle}</div>
+                      <h3 className="mt-2 text-3xl font-black">{card.title}</h3>
+                      <p className="mt-5 leading-7 text-slate-400">{card.desc}</p>
+                      <div className="mt-6 space-y-3">
+                        {card.items.map((item) => (
+                          <div key={item} className="flex items-center gap-3 text-sm text-slate-300">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-400/10 text-orange-400">
+                              <ChevronRight size={13} />
+                            </div>
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={() => useModel(card.id)} className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl border border-orange-400/40 py-3 text-sm font-bold text-orange-300 transition hover:bg-orange-400/10">
+                        {card.cta}<ArrowRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                 <div className="grid md:grid-cols-2">
                   <div className="relative min-h-[330px] overflow-hidden">
                     <img src={card.image} alt={card.title} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" />
@@ -243,6 +266,7 @@ export default function VihokAIModelPage() {
                     </button>
                   </div>
                 </div>
+                )}
               </div>
             ))}
           </div>
@@ -477,6 +501,53 @@ export default function VihokAIModelPage() {
 }
 
 // ===== components ย่อย (port จาก Vihokai-v1kola) =====
+
+/** Kola Swift FX — รูปนก + ไฟวิ่งขอบส้ม + ตากระพริบไฟลุกโชน + เถ้าถ่านลอย
+ * หมายเหตุ: รูปเป็น PNG นิ่ง จึงวาง "ตาไฟ" ด้วย CSS ตรงตำแหน่งตานกโดยประมาณ
+ * (ปรับ EYE_POS ได้ถ้าเปลี่ยนรูป) — ไม่แตะรูปต้นฉบับ */
+const SWIFT_EYE_POS = { left: "40%", top: "36%" }
+
+function KolaSwiftArt({ image, title, badge }: { image: string; title: string; badge: string }) {
+  return (
+    <div className="group/art relative min-h-[330px] overflow-hidden">
+      <img
+        src={image}
+        alt={title}
+        className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#020817] via-transparent to-transparent" />
+
+      {/* ไฟวิ่งขอบใน — กรอบส้มไล่แสง */}
+      <div className="kola-fx-border pointer-events-none absolute inset-3 rounded-2xl opacity-70 [mask:linear-gradient(#000,#000)_content-box,linear-gradient(#000,#000)] [mask-composite:exclude] [padding:2px]" />
+
+      {/* ตาไฟลุกโชน — จุดแสง + วง flare + กะพริบ */}
+      <div className="absolute" style={{ left: SWIFT_EYE_POS.left, top: SWIFT_EYE_POS.top }}>
+        <div className="kola-fx-flare absolute -left-5 -top-5 h-10 w-10 rounded-full bg-orange-500/40 blur-md" />
+        <div className="kola-fx-flare absolute -left-3 -top-3 h-6 w-6 rounded-full bg-amber-400/50 blur-[6px]" style={{ animationDelay: "0.4s" }} />
+        <div className="kola-fx-eye relative h-3.5 w-3.5 rounded-full bg-gradient-to-br from-amber-200 via-orange-500 to-red-600 shadow-[0_0_12px_rgba(251,146,60,0.9),0_0_28px_rgba(251,146,60,0.5)]" />
+        <div className="absolute left-[3px] top-[2px] h-1 w-1 rounded-full bg-white/90" />
+      </div>
+
+      {/* เถ้าถ่านไฟลอยขึ้น */}
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
+          className="kola-fx-ember pointer-events-none absolute bottom-8 h-1.5 w-1.5 rounded-full bg-orange-400"
+          style={{
+            left: `${18 + i * 14}%`,
+            animationDelay: `${i * 0.55}s`,
+            boxShadow: "0 0 8px rgba(251,146,60,0.9)",
+          }}
+        />
+      ))}
+
+      <div className="absolute left-5 top-5 rounded-full border border-orange-400/60 bg-orange-400/10 px-3 py-1 text-[10px] font-black tracking-[0.2em] text-orange-300">
+        {badge}
+      </div>
+    </div>
+  )
+}
+
 function LevelBar({ value }: { value: number }) {
   return (
     <div className="flex gap-1">
