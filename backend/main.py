@@ -47,6 +47,14 @@ from api import research as research_api
 from api import image as image_api
 from api import chat as ai_chat_api
 
+# ✅ Kola Memory & Context (backend/kola_memory.py + supabase_kola_memory.sql)
+try:
+    import kola_memory as kola
+    print("🧠 Kola Memory: ✅ module loaded")
+except Exception as _kola_err:
+    kola = None  # type: ignore
+    print(f"🧠 Kola Memory: ❌ module failed ({_kola_err}) — endpoints จะตอบ 503")
+
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 app = FastAPI(title="Vihok AI v4 - Fast Version + Commands + Translate", version="5.0")
@@ -544,12 +552,34 @@ async def call_claude(prompt: str, locale: str, name: str = None, system_prompt:
         return None
 
 # ===== GET ANSWER (ตอบตัวแรกที่เร็วที่สุด) =====
-async def get_ai_answer(question: str, memories: list, locale: str, selected_ai: str = "auto"):
+async def get_ai_answer(question: str, memories: list, locale: str, selected_ai: str = "auto",
+                        kola_memories: list | None = None):
     # ✅ ตรวจสอบ Cache ก่อน
     language_name = get_language_name(locale)
     cache_key = f"{question}:{language_name}:{selected_ai}"
     if cache_key in answer_cache:
         return f"📦 (จากความจำ) {answer_cache[cache_key]}"
+
+    # Kola Memory: เติมเป็นข้อมูลอ้างอิงใน system_prompt (ไม่ใช่คำสั่งระบบ;
+    # ข้อความล่าสุดของผู้ใช้สำคัญกว่า Memory เก่าเสมอ)
+    kola_hint = ""
+    try:
+        items = kola_memories or []
+        if items and kola is not None:
+            lines = []
+            used = 0
+            for mm in items:
+                line = "- [%s] %s" % (mm.get("category", "fact"), mm.get("content", ""))
+                cost = kola.estimate_tokens(line)
+                if used + cost > kola.MEMORY_CONTEXT_TOKEN_BUDGET:
+                    continue
+                lines.append(line)
+                used += cost
+            if lines:
+                kola_hint = ("[Kola Memory — ข้อมูลอ้างอิง (ข้อความล่าสุดของผู้ใช้สำคัญกว่า)]:\n"
+                             + "\n".join(lines))
+    except Exception as _he:
+        print(f"⚠️ Kola hint skip: {_he}")
     
     name = None
     for m in memories:
@@ -589,7 +619,9 @@ async def get_ai_answer(question: str, memories: list, locale: str, selected_ai:
     }
     
     funcs = ai_map.get(selected_ai, ai_map["auto"])
-    tasks = [func(clean_question, locale, name, system_prompt) for func in funcs]
+    # เติม Kola hint ต่อท้าย system_prompt ทุก provider (ถ้ามี)
+    _sp = (system_prompt + "\n" + kola_hint).strip() if (system_prompt or kola_hint) else None
+    tasks = [func(clean_question, locale, name, _sp) for func in funcs]
     
     # ✅ ตอบตัวแรกที่ได้ (ไม่ต้องรอทุกตัว) - เร็วขึ้น (เผื่อคำตอบยาว: 90 วิ)
     first_answer = None
@@ -840,10 +872,27 @@ async def chat(req: ChatRequest, user_id: str = Depends(current_user_id)):
         
         answer = answer_text
     else:
-        # Single Mode
-        answer = await get_ai_answer(req.question, mems, req.locale, req.selected_ai)
+        # Single Mode — เติม Kola Memory (best-effort: ล้มเหลวก็แชทต่อได้ปกติ)
+        kola_ctx: list = []
+        try:
+            if kola is not None and USE_SUPABASE:
+                _ks = await kola.get_memory_settings(req.user_id)
+                if _ks.get("memory_enabled", True) and _ks.get("use_cross_chat_memory", True):
+                    kola_ctx = await kola.retrieve_memories(req.user_id, clean_question)
+        except Exception as _ke:
+            print(f"⚠️ Kola retrieve skip: {_ke}")
+        answer = await get_ai_answer(req.question, mems, req.locale, req.selected_ai,
+                                     kola_memories=kola_ctx)
 
     conv_id = await save_chat_result(req.user_id, req.conversation_id, req.question, answer)
+
+    # สกัด memory แบบ background (ไม่บล็อก response; ล้มเหลวก็เงียบ)
+    try:
+        if kola is not None and USE_SUPABASE and req.mode != "compare":
+            asyncio.create_task(kola.extract_and_store_memory(
+                req.user_id, clean_question, (answer or "")[:2000]))
+    except Exception as _xe:
+        print(f"⚠️ Kola extract skip: {_xe}")
 
     return {
         "conversation_id": conv_id,
@@ -971,6 +1020,124 @@ async def clear_memory_get(user_id: str = Depends(current_user_id)):
 
     memories_db[user_id] = []
     return {"status": "cleared", "user_id": user_id}
+
+
+# ===== Kola Memory & Context (ตาราง kola_* — ไม่กระทบ /memory/* เดิม) =====
+def _kola_guard():
+    if kola is None:
+        raise HTTPException(status_code=503, detail="Kola Memory module ไม่พร้อม")
+    if not USE_SUPABASE:
+        raise HTTPException(status_code=503, detail="ต้องเชื่อม Supabase ก่อน (รัน supabase_kola_memory.sql)")
+
+
+class KolaMemoryCreate(BaseModel):
+    category: str = "fact"
+    content: str = ""
+    importance: int = 3
+
+
+class KolaMemoryUpdate(BaseModel):
+    category: str | None = None
+    content: str | None = None
+    importance: int | None = None
+
+
+class KolaSettingsPatch(BaseModel):
+    memory_enabled: bool | None = None
+    extraction_enabled: bool | None = None
+    use_cross_chat_memory: bool | None = None
+    retention_days: int | None = None
+    max_memories: int | None = None
+
+
+@app.get("/api/kola/status")
+async def kola_status(user_id: str = Depends(current_user_id)):
+    """สถานะ Kola Memory (ONLINE/OFFLINE) สำหรับป้ายใน Dashboard"""
+    _kola_guard()
+    try:
+        return await kola.kola_status(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Kola status ล้มเหลว: {e}")
+
+
+@app.get("/api/kola/memories")
+async def kola_list_memories(user_id: str = Depends(current_user_id),
+                             category: str = Query(default=""),
+                             search: str = Query(default=""),
+                             limit: int = Query(default=50, ge=1, le=200),
+                             offset: int = Query(default=0, ge=0)):
+    _kola_guard()
+    items = await kola.list_memories(user_id, category, search, limit, offset)
+    return {"user_id": user_id, "memories": items, "count": len(items), "powered_by": "Kola Memory"}
+
+
+@app.post("/api/kola/memories", status_code=201)
+async def kola_create_memory(body: KolaMemoryCreate, user_id: str = Depends(current_user_id)):
+    _kola_guard()
+    if not body.content.strip() or len(body.content) > 1000:
+        raise HTTPException(status_code=422, detail="content ต้องมี 1–1000 ตัวอักษร")
+    if body.category not in kola.CATEGORIES:
+        raise HTTPException(status_code=422, detail={"valid_categories": list(kola.CATEGORIES)})
+    row = await kola.create_manual_memory(user_id, body.category, body.content, body.importance)
+    if not row:
+        raise HTTPException(status_code=422, detail="สร้างไม่ได้ (อาจมีข้อมูลอ่อนไหว หรือ DB ล้มเหลว)")
+    return row
+
+
+@app.patch("/api/kola/memories/{memory_id}")
+async def kola_update_memory(memory_id: str, body: KolaMemoryUpdate,
+                             user_id: str = Depends(current_user_id)):
+    _kola_guard()
+    row = await kola.update_memory(user_id, memory_id,
+                                   {"category": body.category, "content": body.content,
+                                    "importance": body.importance})
+    if not row:
+        raise HTTPException(status_code=404, detail="ไม่พบ memory นี้ (หรือไม่ใช่ของคุณ)")
+    return row
+
+
+@app.delete("/api/kola/memories/{memory_id}")
+async def kola_delete_memory(memory_id: str, user_id: str = Depends(current_user_id)):
+    _kola_guard()
+    if not await kola.delete_memory(user_id, memory_id):
+        raise HTTPException(status_code=404, detail="ไม่พบ memory นี้ (หรือไม่ใช่ของคุณ)")
+    return {"status": "deleted", "id": memory_id}
+
+
+@app.delete("/api/kola/memories")
+async def kola_clear_memories(user_id: str = Depends(current_user_id),
+                              confirm: str = Query(default="")):
+    """ล้างทั้งหมด — ต้องส่ง ?confirm=yes กันกดพลาด"""
+    _kola_guard()
+    if confirm.lower() != "yes":
+        raise HTTPException(status_code=422, detail="ต้องยืนยัน ?confirm=yes")
+    n = await kola.clear_memories(user_id)
+    return {"status": "cleared", "count": n}
+
+
+@app.post("/api/kola/memories/search")
+async def kola_search_memories(body: dict, user_id: str = Depends(current_user_id)):
+    _kola_guard()
+    q = str((body or {}).get("query", ""))[:500]
+    if not q.strip():
+        raise HTTPException(status_code=422, detail="ต้องมี query")
+    items = await kola.retrieve_memories(user_id, q)
+    return {"user_id": user_id, "query": q, "memories": items, "count": len(items)}
+
+
+@app.get("/api/kola/settings")
+async def kola_get_settings(user_id: str = Depends(current_user_id)):
+    _kola_guard()
+    return await kola.get_memory_settings(user_id)
+
+
+@app.patch("/api/kola/settings")
+async def kola_patch_settings(body: KolaSettingsPatch, user_id: str = Depends(current_user_id)):
+    _kola_guard()
+    row = await kola.update_memory_settings(user_id, body.model_dump(exclude_none=True))
+    if row is None:
+        raise HTTPException(status_code=500, detail="บันทึก settings ไม่ได้")
+    return row
 
 
 # ===== Root =====

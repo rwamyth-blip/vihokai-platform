@@ -1308,7 +1308,14 @@ export default function Page() {
         {/* Memory Panel */}
         <div className="mx-4 mb-3 rounded-xl bg-slate-50 dark:bg-[#1f1f1f] border border-slate-200 dark:border-white/5 p-3">
           <div className="text-[11px] font-bold mb-2 flex items-center justify-between">
-            <span>🧠 {t.remember}</span>
+            <button
+              onClick={() => router.push(`/${locale}/memory`)}
+              className="flex items-center gap-1.5 hover:text-orange-500 transition"
+              title="Kola Memory • Memory & Context"
+            >
+              <span>🧠 {t.remember}</span>
+              <KolaDot />
+            </button>
             <div className="flex items-center gap-2">
               <span className="text-[9px] bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded-full">
                 {memories.length} {t.memoryCount}
@@ -1845,6 +1852,30 @@ export default function Page() {
 }
 
 // ================= COMPONENTS =================
+
+/** จุดสถานะ Kola Memory (ONLINE = เขียวกระพริบ, OFFLINE = เทา) — ดึงจาก /api/kola/status */
+function KolaDot() {
+  const [online, setOnline] = useState<boolean | null>(null)
+  useEffect(() => {
+    let alive = true
+    apiFetch("/api/kola/status")
+      .then((r) => r.json())
+      .then((d) => { if (alive) setOnline(!!d?.online) })
+      .catch(() => { if (alive) setOnline(false) })
+    return () => { alive = false }
+  }, [])
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold ${
+        online ? "bg-green-500/10 text-green-500" : "bg-slate-400/10 text-slate-400"
+      }`}
+      title={online ? "Kola Memory ONLINE" : "Kola Memory OFFLINE"}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${online ? "animate-pulse bg-green-500" : "bg-slate-400"}`} />
+      {online === null ? "…" : online ? "ONLINE" : "OFFLINE"}
+    </span>
+  )
+}
 
 function NavItem({
   icon,
