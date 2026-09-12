@@ -55,7 +55,7 @@ const MODELS: MarketModel[] = [
   {
     id: "1m", technical: "deepseek-v4-flash-0731",
     subtitle: "Powered by DeepSeek V4 Flash 0731 - 1M Context",
-    title: "VihokAI TIDA 1M • Powered by DeepSeek", price: 799,
+    title: "VihokAI TIDA - flash • Powered by DeepSeek", price: 799,
     accentText: "text-violet-400", accentBorder: "border-violet-500/30",
     accentGradient: "from-violet-500 to-fuchsia-500", context: "1M", speed: "Flash",
     pricePerM: "Cached $0.007 / M", badge: "จำแม่น 1M",
