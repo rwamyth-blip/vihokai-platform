@@ -42,9 +42,10 @@ export default function LibraryPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // แปล title+description อัตโนมัติตามภาษาหน้า (ปิดได้โดยเลือกต้นฉบับ)
+        // ขอ 100 ที่ — backend แปลแค่ Top-N ตาม BM25 (SEARCH_TRANSLATE_LIMIT) ที่เหลือโชว์ต้นฉบับ
         body: JSON.stringify({
           query: query.trim(),
-          limit: 12,
+          limit: 100,
           target_lang: translateTo === "orig" ? null : translateTo || locale,
         }),
       })
@@ -66,7 +67,7 @@ export default function LibraryPage() {
       const res = await fetch(`${API_BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: chat.trim(), use_library: true, top_k: 50 }),
+        body: JSON.stringify({ message: chat.trim(), use_library: true, top_k: 100 }),
       })
       const data = await res.json()
       setAnswer(data)

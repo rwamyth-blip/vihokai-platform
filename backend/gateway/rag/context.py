@@ -1,8 +1,9 @@
 from typing import List, Dict, Any
 
-def build_context(docs: List[Dict[str, Any]], max_chars: int = 6000) -> str:
+def build_context(docs: List[Dict[str, Any]], max_chars: int = 6000, max_docs: int = 15) -> str:
+    # ป้อน LLM แค่หัวแถว (กัน prompt บวม) — citations ทั้งหมดยังอยู่ใน docs/citations ครบ
     ctx = []
-    for i, d in enumerate(docs, 1):
+    for i, d in enumerate(docs[:max(1, max_docs)], 1):
         title = d.get("title","Untitled")
         authors = ", ".join(d.get("authors", [])[:3])
         source = d.get("source","")

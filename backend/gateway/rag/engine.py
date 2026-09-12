@@ -10,6 +10,8 @@ class RAGEngine:
     async def answer(self, question: str, search_query: str = None, history: List[Dict]=None, use_library: bool=True, top_k: int=5):
         q = search_query or question
         # Python สืบค้นจาก Library ก่อน แล้วป้อน context ให้ LLM — LLM ไม่ติดต่อห้องสมุดเอง
+        # RAG ใช้ top_k เต็ม (สูงสุด 100) เป็น citations; context ป้อน LLM จำกัดแค่หัวแถวกันเปลือง token
+        top_k = max(1, min(100, int(top_k or 5)))
         docs = await self.retriever.retrieve(q, top_k=top_k, use_library=use_library, search_live=use_library)
         context = build_context(docs)
         

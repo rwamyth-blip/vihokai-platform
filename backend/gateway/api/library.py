@@ -8,7 +8,7 @@ router = APIRouter(prefix="/library", tags=["Library"])
 
 class SearchRequest(BaseModel):
     query: str = Field(..., examples=["artificial intelligence"])
-    limit: int = Field(10, ge=1, le=50)
+    limit: int = Field(10, ge=1, le=100)
     sources: Optional[List[str]] = Field(
         None,
         description="01 WEB: searxng | 02 LOCAL: local (Qdrant) | 03 LIBRARY: openlibrary, loc, crossref, nasa, google_books, wikipedia, internet_archive | 04 AI: firecrawl (ว่าง = QueryRouter จัดตาม MESH)",
@@ -152,7 +152,7 @@ async def search_library(req: SearchRequest):
 @router.get("/search")
 async def search_library_get(
     q: str = Query(...),
-    limit: int = 10,
+    limit: int = Query(default=10, ge=1, le=100),
     target_lang: Optional[str] = Query(default=None, description="เช่น th/en/ja"),
 ):
     return await search_library(
