@@ -1,6 +1,6 @@
 """
 VihokAI Main.py - FAST VERSION + COMMANDS + TRANSLATE
-เชื่อม Groq + Gemini + OpenAI + DeepSeek + Kimi + Claude
+เชื่อม Groq + Gemini + OpenAI + DeepSeek + Kimi + Claude + Qwen
 รองรับ 3 โหมด: Single, Compare, Stream
 รองรับ Slash Commands (/explain, /code, /godmode, etc.)
 รองรับ Translation API (/api/translate, /api/languages)
@@ -339,6 +339,31 @@ async def call_groq(prompt: str, locale: str, name: str = None, system_prompt: s
         print(f"❌ Groq error: {e}")
         return None
 
+async def call_qwen(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
+    """Qwen3 8B ผ่าน Groq — รุ่นหลัก qwen/qwen3.8-27b, fallback qwen/qwen3.6-27b (ปรับผ่าน QWEN_MODEL คั่น comma ได้)"""
+    try:
+        if not GROQ_API_KEY:
+            return None
+        raw = (os.getenv("QWEN_MODEL") or "qwen/qwen3.8-27b, qwen/qwen3.6-27b").strip()
+        models = [m.strip() for m in raw.split(",") if m.strip() and " " not in m.strip()]
+        if not models:
+            models = ["qwen/qwen3.8-27b", "qwen/qwen3.6-27b"]
+        last_err = None
+        for model in models:
+            try:
+                ans = await _call_groq_model(model, prompt, locale, name, system_prompt)
+                if ans:
+                    return ans
+            except Exception as e:
+                last_err = e
+                continue
+        if last_err:
+            print(f"❌ Qwen error: {last_err}")
+        return None
+    except Exception as e:
+        print(f"❌ Qwen error: {e}")
+        return None
+
 async def call_gemini(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
     try:
         if not GEMINI_API_KEY:
@@ -523,7 +548,7 @@ async def get_ai_answer(question: str, memories: list, locale: str, selected_ai:
 
     # ✅ ส่ง system_prompt ไปยัง AI ด้วย
     ai_map = {
-        "auto": [call_vihokai, call_groq, call_gemini, call_openai, call_deepseek, call_kimi, call_claude],
+        "auto": [call_vihokai, call_groq, call_gemini, call_openai, call_deepseek, call_kimi, call_qwen, call_claude],
         "vihokai": [call_vihokai],
         "kola_prime": [call_vihokai, call_groq, call_openai],
         "kola_swift": [call_groq],
@@ -532,7 +557,7 @@ async def get_ai_answer(question: str, memories: list, locale: str, selected_ai:
         "gemini": [call_gemini],
         "deepseek": [call_deepseek],
         "kimi": [call_kimi],
-        "qwen": [call_groq],
+        "qwen": [call_qwen],
         "meta_ai": [call_groq],
         "claude": [call_claude],
     }
