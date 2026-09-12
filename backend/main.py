@@ -392,26 +392,34 @@ async def call_muse(prompt: str, locale: str, name: str = None, system_prompt: s
         if not model or " " in model:
             model = "muse-spark-1.1"
         mem_text = f"จำไว้: ผู้ใช้ชื่อ {name}. " if name else ""
-        language_name = get_language_name(locale)
         _tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user",
-                         "content": f"{mem_text}คำถาม: {prompt} {_tier_hint(_tier, language_name)}"})
+        # Muse สับสนเมื่อมี hint ในวงเล็บต่อท้ายคำถาม (ตอบว่าง finish=length — วัดจริง bare ตอบได้, มี hint ว่าง)
+        # → ไม่เติม hint ใน user message; สั่งภาษาผ่าน system message แทน (เสถียรกว่า)
+        messages = [{"role": "system",
+                     "content": ("You are Muse Spark, a helpful assistant. "
+                                 "Always reply in the user's language. Be accurate and complete: "
+                                 "cover the key points with structure and examples. No filler. "
+                                 + (system_prompt or "")).strip()},
+                    {"role": "user", "content": f"{mem_text}{prompt}"}]
         # กัน content ว่างแบบ finish=length: ขั้นต่ำ 1500
         budget = max(_tier_tokens(_tier), 1500)
+        # Muse API ไม่เสถียร (บางครั้งคืนว่างทั้งที่ prompt เดิมตอบได้) → retry สูงสุด 3 ครั้ง
+        content = ""
         async with httpx.AsyncClient(timeout=90.0) as client:
-            r = await client.post(
-                f"{base}/chat/completions",
-                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                json={"model": model, "messages": messages,
-                      "max_tokens": budget, "temperature": 0.6})
-        if r.status_code != 200:
-            print(f"❌ Muse error: HTTP {r.status_code} {r.text[:200]}")
-            return None
-        data = r.json()
-        content = (((data.get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip()
+            for _try in range(3):
+                r = await client.post(
+                    f"{base}/chat/completions",
+                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                    json={"model": model, "messages": messages,
+                          "max_tokens": budget, "temperature": 0.6})
+                if r.status_code != 200:
+                    print(f"❌ Muse error: HTTP {r.status_code} {r.text[:200]}")
+                    break
+                data = r.json()
+                content = (((data.get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip()
+                if content:
+                    break
+                print(f"⚠️ Muse empty (try {_try + 1}/3) — retry...")
         return content or None
     except Exception as e:
         print(f"❌ Muse error: {e}")
