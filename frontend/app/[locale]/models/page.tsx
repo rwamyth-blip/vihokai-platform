@@ -144,8 +144,28 @@ export default function VihokAIModelPage() {
 
       {/* ===== HERO (Home) ===== */}
       <section id="home" className="relative z-10 min-h-[720px] overflow-hidden">
-        <div className="absolute inset-0">
-          <img src={IMG.hero} alt="VihokAI 1.0 Kola AI robotic bird" className="h-full w-full object-cover object-center" />
+        <div className="absolute inset-0 overflow-hidden">
+          {/* นกโผบิน — ขยับขึ้นลง + ซูมเบาๆ loop 5 วิ */}
+          <img
+            src={IMG.hero}
+            alt="VihokAI 1.0 Kola AI robotic bird"
+            className="kola-hero-bird h-full w-full object-cover object-center"
+          />
+          {/* แสงไฟกวาดผ่านตัวนก — วิ่งซ้ายไปขวา loop 5 วิ */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="kola-hero-sweep absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-cyan-300/25 to-transparent" />
+            <div className="kola-hero-sweep absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-orange-400/20 to-transparent" style={{ animationDelay: "2.5s" }} />
+          </div>
+          {/* ไฟกระพริบบนตัวนก — จุดแสงฟ้า/ส้มจังหวะต่างกัน */}
+          <div className="pointer-events-none absolute inset-0">
+            <span className="kola-hero-blink-a absolute left-[62%] top-[24%] h-2.5 w-2.5 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.9)]" />
+            <span className="kola-hero-blink-b absolute left-[70%] top-[38%] h-2 w-2 rounded-full bg-orange-400 shadow-[0_0_12px_rgba(251,146,60,0.9)]" />
+            <span className="kola-hero-blink-c absolute left-[55%] top-[52%] h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.9)]" />
+            <span className="kola-hero-blink-b absolute left-[78%] top-[60%] h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_12px_rgba(252,211,77,0.9)]" style={{ animationDelay: "0.9s" }} />
+            <span className="kola-hero-blink-a absolute left-[46%] top-[30%] h-1.5 w-1.5 rounded-full bg-cyan-200 shadow-[0_0_10px_rgba(165,243,252,0.9)]" style={{ animationDelay: "0.3s" }} />
+          </div>
+          {/* แสงหายใจ — glow รวมขยับตาม loop 5 วิ */}
+          <div className="kola-hero-breathe pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_65%_35%,rgba(56,189,248,0.12),transparent_55%)]" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/55 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#020817] via-transparent to-[#020817]/30" />
         </div>

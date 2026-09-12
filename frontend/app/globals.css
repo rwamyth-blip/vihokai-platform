@@ -31,6 +31,36 @@ body { background: #0f0f0f; }
 .kola-fx-eye { animation: kola-eye-blink 4.6s ease-in-out infinite; transform-origin: center; }
 .kola-fx-flare { animation: kola-eye-flare 1.8s ease-in-out infinite; }
 .kola-fx-ember { animation: kola-ember-rise 2.6s ease-in infinite; }
+
+/* ===== Kola Hero FX: loop 5 วิ smooth — นกโผบิน + แสงไฟกวาด + ไฟกระพริบ ===== */
+@keyframes kola-hero-hover {
+  0%, 100% { transform: translateY(0) scale(1.02); }
+  50% { transform: translateY(-16px) scale(1.05); }
+}
+@keyframes kola-hero-sweep {
+  0% { transform: translateX(-120%) skewX(-12deg); opacity: 0; }
+  15% { opacity: 1; }
+  55% { opacity: 1; }
+  75%, 100% { transform: translateX(240%) skewX(-12deg); opacity: 0; }
+}
+@keyframes kola-hero-blink {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+@keyframes kola-hero-breathe {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.kola-hero-bird { animation: kola-hero-hover 5s ease-in-out infinite; will-change: transform; }
+.kola-hero-sweep { animation: kola-hero-sweep 5s linear infinite; will-change: transform, opacity; }
+.kola-hero-blink-a { animation: kola-hero-blink 1.1s ease-in-out infinite; }
+.kola-hero-blink-b { animation: kola-hero-blink 1.7s ease-in-out infinite; animation-delay: 0.5s; }
+.kola-hero-blink-c { animation: kola-hero-blink 2.3s ease-in-out infinite; animation-delay: 1.1s; }
+.kola-hero-breathe { animation: kola-hero-breathe 5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .kola-hero-bird, .kola-hero-sweep,
+  .kola-hero-blink-a, .kola-hero-blink-b, .kola-hero-blink-c, .kola-hero-breathe { animation: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .kola-fx-border, .kola-fx-eye, .kola-fx-flare, .kola-fx-ember { animation: none; }
 }
