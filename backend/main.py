@@ -379,6 +379,44 @@ async def call_qwen(prompt: str, locale: str, name: str = None, system_prompt: s
         print(f"❌ Qwen error: {e}")
         return None
 
+async def call_muse(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
+    """Muse Spark ผ่าน api.meta.ai (OpenAI-compatible) — model ตาม MUSE_AI_MODEL (default muse-spark-1.1)
+    หมายเหตุ: max_tokens ต้อง >=1500 (ขอน้อยกว่านั้น API คืน finish=length + content ว่าง)"""
+    try:
+        key = (os.getenv("MUSE_API_KEY") or "").strip()
+        if not key:
+            return None
+        import httpx
+        base = (os.getenv("MUSE_BASE_URL", "https://api.meta.ai/v1") or "").strip().rstrip("/")
+        model = (os.getenv("MUSE_AI_MODEL", "muse-spark-1.1") or "").strip()
+        if not model or " " in model:
+            model = "muse-spark-1.1"
+        mem_text = f"จำไว้: ผู้ใช้ชื่อ {name}. " if name else ""
+        language_name = get_language_name(locale)
+        _tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user",
+                         "content": f"{mem_text}คำถาม: {prompt} {_tier_hint(_tier, language_name)}"})
+        # กัน content ว่างแบบ finish=length: ขั้นต่ำ 1500
+        budget = max(_tier_tokens(_tier), 1500)
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            r = await client.post(
+                f"{base}/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={"model": model, "messages": messages,
+                      "max_tokens": budget, "temperature": 0.6})
+        if r.status_code != 200:
+            print(f"❌ Muse error: HTTP {r.status_code} {r.text[:200]}")
+            return None
+        data = r.json()
+        content = (((data.get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip()
+        return content or None
+    except Exception as e:
+        print(f"❌ Muse error: {e}")
+        return None
+
 async def call_gemini(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
     try:
         if not GEMINI_API_KEY:
@@ -604,17 +642,18 @@ async def get_ai_answer(question: str, memories: list, locale: str, selected_ai:
 
     # ✅ ส่ง system_prompt ไปยัง AI ด้วย
     ai_map = {
-        "auto": [call_vihokai, call_groq, call_gemini, call_openai, call_deepseek, call_kimi, call_qwen, call_claude],
+        "auto": [call_vihokai, call_groq, call_gemini, call_openai, call_deepseek, call_kimi, call_qwen, call_muse, call_claude],
         "vihokai": [call_vihokai],
         "kola_prime": [call_vihokai, call_groq, call_openai],
         "kola_swift": [call_groq],
-        "spark": [call_groq],
+        "spark": [call_muse, call_groq],
         "chatgpt": [call_openai],
         "gemini": [call_gemini],
         "deepseek": [call_deepseek],
         "kimi": [call_kimi],
         "qwen": [call_qwen],
-        "meta_ai": [call_groq],
+        "muse": [call_muse],
+        "meta_ai": [call_muse, call_groq],
         "claude": [call_claude],
     }
     
