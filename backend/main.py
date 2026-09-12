@@ -471,7 +471,23 @@ async def call_deepseek(prompt: str, locale: str, name: str = None, system_promp
             max_tokens=_tier_tokens(_tier),
             temperature=0.6
         )
-        return response.choices[0].message.content
+        content = (response.choices[0].message.content or "").strip()
+        # deepseek-flash เป็น reasoning แบบเงียบ: บางคำถามกิน reasoning เต็มโควตา
+        # (วัดจริง: ตอบว่าง finish=length reasoning=max) → retry ด้วย deepseek-chat ที่ไม่กิน reasoning
+        if not content:
+            try:
+                fb = await client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=messages,
+                    max_tokens=_tier_tokens(_tier),
+                    temperature=0.6
+                )
+                content = (fb.choices[0].message.content or "").strip()
+                if content:
+                    print("⚠️ DeepSeek flash ว่าง → fallback deepseek-chat ตอบแทน")
+            except Exception as fe:
+                print(f"❌ DeepSeek fallback error: {fe}")
+        return content or None
     except Exception as e:
         print(f"❌ DeepSeek error: {e}")
         return None
