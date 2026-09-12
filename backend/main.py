@@ -425,6 +425,44 @@ async def call_muse(prompt: str, locale: str, name: str = None, system_prompt: s
         print(f"❌ Muse error: {e}")
         return None
 
+async def call_siri(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
+    """SIRI ผ่าน Cloudflare Worker (Fireworks ข้างหลัง) — model ตาม SIRI_MODEL (default muse-glimmer-30b)
+    env: SIRI_BASE_URL + SIRI_API_KEY + SIRI_MODEL (ดู backend/.env)"""
+    try:
+        key = (os.getenv("SIRI_API_KEY") or "").strip()
+        base = (os.getenv("SIRI_BASE_URL", "https://vihokai-siri.rwamyth.workers.dev/v1") or "").strip().rstrip("/")
+        model = (os.getenv("SIRI_MODEL", "muse-glimmer-30b") or "").strip()
+        if not key or not model:
+            return None
+        import httpx
+        mem_text = f"จำไว้: ผู้ใช้ชื่อ {name}. " if name else ""
+        _tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
+        # สั่งภาษาผ่าน system (Muse สอนไว้: hint ในวงเล็บต่อท้ายทำให้บาง API ตอบว่าง)
+        messages = [{"role": "system",
+                     "content": ("You are a helpful assistant. "
+                                 "Always reply in the user's language. Be accurate and complete: "
+                                 "cover the key points with structure and examples. No filler. "
+                                 + (system_prompt or "")).strip()},
+                    {"role": "user", "content": f"{mem_text}{prompt}"}]
+        budget = max(_tier_tokens(_tier), 1500)
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            r = await client.post(
+                f"{base}/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={"model": model, "messages": messages,
+                      "max_tokens": budget, "temperature": 0.6})
+        if r.status_code != 200:
+            print(f"❌ SIRI error: HTTP {r.status_code} {r.text[:200]}")
+            return None
+        data = r.json()
+        msg = ((data.get("choices") or [{}])[0].get("message") or {})
+        content = (msg.get("content") or "").strip()
+        # กัน reasoning หลุดมาปนคำตอบ (SIRI เคยส่ง reasoning_content มาด้วย)
+        return content or None
+    except Exception as e:
+        print(f"❌ SIRI error: {e}")
+        return None
+
 async def call_gemini(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
     try:
         if not GEMINI_API_KEY:
@@ -650,11 +688,12 @@ async def get_ai_answer(question: str, memories: list, locale: str, selected_ai:
 
     # ✅ ส่ง system_prompt ไปยัง AI ด้วย
     ai_map = {
-        "auto": [call_vihokai, call_groq, call_gemini, call_openai, call_deepseek, call_kimi, call_qwen, call_muse, call_claude],
+        "auto": [call_vihokai, call_groq, call_gemini, call_openai, call_deepseek, call_kimi, call_qwen, call_muse, call_siri, call_claude],
         "vihokai": [call_vihokai],
         "kola_prime": [call_vihokai, call_groq, call_openai],
         "kola_swift": [call_groq],
         "spark": [call_muse, call_groq],
+        "siri": [call_siri],
         "chatgpt": [call_openai],
         "gemini": [call_gemini],
         "deepseek": [call_deepseek],
