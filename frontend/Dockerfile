@@ -28,6 +28,7 @@ RUN addgroup --system --gid 1001 nodejs \
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # หมายเหตุ: ไม่ COPY public/ เพราะ repo นี้ไม่มีโฟลเดอร์นั้น — COPY ของที่ไม่มีจะทำให้ build ล้ม (เจอจริง 2026-09-11)
 
 USER nextjs

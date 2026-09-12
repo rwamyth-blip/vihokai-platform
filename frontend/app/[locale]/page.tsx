@@ -596,13 +596,18 @@ type ChatItem = { id: string; title: string; group: string; messages: Message[];
 
 // ===== AI Models =====
 // engine = ชื่อโมเดลจริงบน backend (อ้างอิง META_AI_MODEL/GROQ_MODEL/OPENAI_MODEL/DEEPSEEK_MODEL/KIMI_MODEL)
+// kola_prime/kola_swift/spark/qwen = โหมดตาม sitemap AI Models (VihokAI Model page) — backend ai_map รู้จักแล้ว
 const AI_MODELS = [
   { id: "vihokai", name: "VihokAI 1.0", desc: "Siri · gpt-5-nano", icon: "👑", color: "text-amber-500", engine: "gpt-5-nano", badge: "SIRI" },
   { id: "auto", name: "Auto", desc: "Smart Selection", icon: "◉", color: "text-orange-500", engine: "gpt-oss-120b · gpt-5-nano" },
+  { id: "kola_prime", name: "Kola Prime", desc: "AI Commander · multi-agent", icon: "🦅", color: "text-cyan-400", engine: "gpt-5-nano · gpt-oss-120b" },
+  { id: "kola_swift", name: "Kola Swift", desc: "Fast · Qwen team", icon: "⚡", color: "text-orange-400", engine: "gpt-oss-120b" },
+  { id: "spark", name: "Muse Spark 1.3", desc: "Orchestrator · Judge", icon: "✦", color: "text-cyan-300", engine: "gpt-oss-120b" },
   { id: "chatgpt", name: "ChatGPT", desc: "Smart & Fast", icon: "◉", color: "text-orange-500", engine: "gpt-5-nano" },
   { id: "gemini", name: "Gemini", desc: "Balanced", icon: "✦", color: "text-blue-500", engine: "gemini-3.1-flash-lite" },
   { id: "deepseek", name: "DeepSeek", desc: "V4.1 Flash", icon: "◈", color: "text-blue-600", engine: "deepseek-flash" },
   { id: "kimi", name: "Kimi", desc: "Creative", icon: "∞", color: "text-purple-500", engine: "kimi-k3" },
+  { id: "qwen", name: "Qwen3 8B", desc: "Document AI · RAG", icon: "📄", color: "text-green-500", engine: "qwen/qwen3.8-27b" },
   { id: "meta_ai", name: "Meta AI", desc: "Fast · by Meta", icon: "◍", color: "text-sky-500", engine: "gpt-oss-120b", badge: "NEW" },
   { id: "claude", name: "Claude", desc: "Analytical", icon: "✦", color: "text-red-500", engine: "claude-4" },
 ]

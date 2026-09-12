@@ -525,10 +525,14 @@ async def get_ai_answer(question: str, memories: list, locale: str, selected_ai:
     ai_map = {
         "auto": [call_vihokai, call_groq, call_gemini, call_openai, call_deepseek, call_kimi, call_claude],
         "vihokai": [call_vihokai],
+        "kola_prime": [call_vihokai, call_groq, call_openai],
+        "kola_swift": [call_groq],
+        "spark": [call_groq],
         "chatgpt": [call_openai],
         "gemini": [call_gemini],
         "deepseek": [call_deepseek],
         "kimi": [call_kimi],
+        "qwen": [call_groq],
         "meta_ai": [call_groq],
         "claude": [call_claude],
     }
