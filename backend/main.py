@@ -275,10 +275,17 @@ async def _call_groq_model(model: str, prompt: str, locale: str, name: str = Non
     messages.append({"role": "user", "content": full_prompt})
 
     # reasoning models (GPT-5/o-series): ใช้ max_completion_tokens + reasoning_effort แทน
+    # Groq free tier จำกัด OTPM ~1000 (qwen โดน 429 เมื่อขอ long 4000) → clamp เหลือ 900 กัน rate limit
+    def _groq_budget(t: str) -> int:
+        try:
+            cap = int(os.getenv("GROQ_MAX_TOKENS", "900"))
+        except ValueError:
+            cap = 900
+        return min(_tier_tokens(t), max(300, cap))
     kwargs = (
         {"max_completion_tokens": _nano_budget(long=(tier == "long")), "reasoning_effort": "minimal"}
         if _is_reasoning_model(model)
-        else {"max_tokens": _tier_tokens(tier), "temperature": 0.6}
+        else {"max_tokens": _groq_budget(tier), "temperature": 0.6}
     )
     response = await client.chat.completions.create(
         model=model,
@@ -483,10 +490,13 @@ async def call_kimi(prompt: str, locale: str, name: str = None, system_prompt: s
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": f"{mem_text}{prompt} {_tier_hint(_tier, get_language_name(locale))} "})
 
+        # kimi-k3 เป็น reasoning model: (1) temperature ต้อง = 1 เท่านั้น (2) reasoning tokens
+        # กินโควตา max_tokens ด้วย (วัดจริง: long prompt กิน reasoning ~1500) → long ต้อง 4000+1500 กันตอบว่างแบบ finish=length
+        _kimi_budget = {"short": 600, "std": 2500, "long": 6000}.get(_tier, 2500)
         response = await client.chat.completions.create(
             model=os.getenv("KIMI_MODEL", "kimi-k3"),
             messages=messages,
-            max_tokens=_tier_tokens(_tier),
+            max_tokens=_kimi_budget,
             temperature=1
         )
         return response.choices[0].message.content
@@ -501,7 +511,7 @@ async def call_claude(prompt: str, locale: str, name: str = None, system_prompt:
         from anthropic import AsyncAnthropic
         client = AsyncAnthropic(api_key=CLAUDE_API_KEY)
         mem_text = f"User name is {name}. " if name else ""
-        
+
         _tier = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
         full_prompt = f"{mem_text}{prompt} {_tier_hint(_tier, get_language_name(locale))}"
         if system_prompt:
