@@ -603,6 +603,7 @@ const AI_MODELS = [
   { id: "kola_prime", name: "Kola Prime", desc: "AI Commander · multi-agent", icon: "🦅", color: "text-cyan-400", engine: "gpt-5-nano · gpt-oss-120b" },
   { id: "kola_swift", name: "Kola Swift", desc: "Fast · Qwen team", icon: "⚡", color: "text-orange-400", engine: "gpt-oss-120b" },
   { id: "spark", name: "Muse Spark 1.3", desc: "Orchestrator · Judge", icon: "✦", color: "text-cyan-300", engine: "muse-spark-1.1" },
+  { id: "siri", name: "Vihok01 Siri", desc: "Meta AI · muse-glimmer", icon: "🎙️", color: "text-teal-300", engine: "muse-glimmer-30b" },
   { id: "chatgpt", name: "ChatGPT", desc: "Smart & Fast", icon: "◉", color: "text-orange-500", engine: "gpt-5-nano" },
   { id: "gemini", name: "Gemini", desc: "Balanced", icon: "✦", color: "text-blue-500", engine: "gemini-3.1-flash-lite" },
   { id: "deepseek", name: "DeepSeek", desc: "V4.1 Flash", icon: "◈", color: "text-blue-600", engine: "deepseek-flash" },

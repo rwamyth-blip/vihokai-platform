@@ -339,6 +339,7 @@ export default function VihokAIModelPage() {
                     { id: "kola_prime", name: "Kola Prime", engine: "gpt-5-nano · gpt-oss-120b", speed: 3, quality: 5, cost: 3 },
                     { id: "kola_swift", name: "Kola Swift", engine: "gpt-oss-120b", speed: 5, quality: 3, cost: 1 },
                     { id: "spark", name: "Muse Spark 1.3", engine: "muse-spark-1.1", speed: 5, quality: 4, cost: 1 },
+                    { id: "siri", name: "Vihok01 Siri", engine: "muse-glimmer-30b", speed: 4, quality: 4, cost: 2 },
                     { id: "deepseek", name: "DeepSeek V4", engine: "deepseek-flash", speed: 3, quality: 5, cost: 1 },
                     { id: "qwen", name: "Qwen3 8B", engine: "qwen/qwen3.8-27b", speed: 4, quality: 4, cost: 1 },
                   ].map((row) => (

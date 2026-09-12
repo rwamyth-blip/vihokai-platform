@@ -906,11 +906,14 @@ async def chat(req: ChatRequest, user_id: str = Depends(current_user_id)):
             call_openai(req.question, req.locale, name),
             call_deepseek(req.question, req.locale, name),
             call_kimi(req.question, req.locale, name),
+            call_qwen(req.question, req.locale, name),
+            call_muse(req.question, req.locale, name),
+            call_siri(req.question, req.locale, name),
             call_claude(req.question, req.locale, name),
         ]
         results = await asyncio.gather(*tasks)
         # ✅ เรียงให้ตรงกับ tasks
-        ai_names = ["vihokai", "meta_ai", "gemini", "chatgpt", "deepseek", "kimi", "claude"]
+        ai_names = ["vihokai", "meta_ai", "gemini", "chatgpt", "deepseek", "kimi", "qwen", "muse", "siri", "claude"]
         answer_text = "📊 **เปรียบเทียบคำตอบจากทุก AI:**\n\n"
         display_names = {
             "vihokai": "VihokAI 1.0",
@@ -918,7 +921,10 @@ async def chat(req: ChatRequest, user_id: str = Depends(current_user_id)):
             "gemini": "Gemini",
             "deepseek": "DeepSeek",
             "kimi": "Kimi",
-            "meta_ai": "Groq",
+            "qwen": "Qwen3 8B",
+            "muse": "Muse Spark",
+            "siri": "Vihok01 Siri",
+            "meta_ai": "Meta AI",
             "claude": "Claude"
         }
         
@@ -929,7 +935,7 @@ async def chat(req: ChatRequest, user_id: str = Depends(current_user_id)):
                 answer_text += f"**{name_display}:**\n{result}\n\n"
         
         final_answer = ""
-        if len(all_answers) >= 5:
+        if len(all_answers) >= 6:
             judge_prompt = f"""
             คุณคือผู้ตัดสิน AI ที่ดีที่สุด
             คำถาม: {req.question}
