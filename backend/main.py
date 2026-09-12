@@ -585,6 +585,37 @@ async def call_deepseek(prompt: str, locale: str, name: str = None, system_promp
         return None
 
 async def call_kimi(prompt: str, locale: str, name: str = None, system_prompt: str = None) -> str | None:
+    """โหมด kimi: ลอง Zina/GLM ผ่าน SIRI worker ก่อน (เร็วกว่า ยาวกว่า), fallback kimi-k3 เดิม
+    เหตุผล: benchmark 2026-09-12 — GLM std-TH 1340ch/12วิ vs kimi 452ch/16วิ; long-TH 3584ch/24วิ
+    env: ZINA_MODEL (default accounts/fireworks/models/glm-5p3-flash) + SIRI_BASE_URL/SIRI_API_KEY"""
+    # 1) Zina/GLM ก่อน
+    try:
+        import httpx
+        zbase = (os.getenv("SIRI_BASE_URL", "https://vihokai-siri.rwamyth.workers.dev/v1") or "").strip().rstrip("/")
+        zkey = (os.getenv("SIRI_API_KEY") or "").strip()
+        zmodel = (os.getenv("ZINA_MODEL", "accounts/fireworks/models/glm-5p3-flash") or "").strip()
+        if zkey and zmodel:
+            mem_text = f"จำไว้: ผู้ใช้ชื่อ {name}. " if name else ""
+            _zt = _length_tier(prompt, (system_prompt or "").split()[0] if (system_prompt or "").startswith("/") else None)
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                r = await client.post(
+                    f"{zbase}/chat/completions",
+                    headers={"Authorization": f"Bearer {zkey}", "Content-Type": "application/json"},
+                    json={"model": zmodel,
+                          "messages": [{"role": "system",
+                                        "content": ("You are a helpful assistant. Always reply in the user's language. "
+                                                    "Be accurate and complete with structure and examples. "
+                                                    + (system_prompt or "")).strip()},
+                                       {"role": "user", "content": f"{mem_text}{prompt}"}],
+                          "max_tokens": max(_tier_tokens(_zt), 1500), "temperature": 0.6})
+            if r.status_code == 200:
+                zc = ((((r.json().get("choices") or [{}])[0].get("message") or {}).get("content")) or "").strip()
+                if zc:
+                    return zc
+            print(f"⚠️ Zina empty/fail → fallback kimi-k3 (HTTP {r.status_code})")
+    except Exception as ze:
+        print(f"⚠️ Zina error → fallback kimi-k3: {ze}")
+    # 2) kimi-k3 เดิม
     try:
         if not KIMI_API_KEY:
             return None

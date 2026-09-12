@@ -613,7 +613,7 @@ const AI_MODELS = [
   { id: "chatgpt", name: "ChatGPT", desc: "Smart & Fast", icon: "◉", color: "text-orange-500", engine: "gpt-5-nano" },
   { id: "gemini", name: "Gemini", desc: "Balanced", icon: "✦", color: "text-blue-500", engine: "gemini-3.1-flash-lite" },
   { id: "deepseek", name: "DeepSeek", desc: "V4.1 Flash", icon: "◈", color: "text-blue-600", engine: "deepseek-flash" },
-  { id: "kimi", name: "Kimi", desc: "Creative", icon: "∞", color: "text-purple-500", engine: "kimi-k3" },
+  { id: "kimi", name: "Kimi", desc: "Creative · Zina Flash", icon: "∞", color: "text-purple-500", engine: "glm-5p3-flash · kimi-k3" },
   { id: "qwen", name: "Qwen3 8B", desc: "Document AI · RAG", icon: "📄", color: "text-green-500", engine: "qwen/qwen3.8-27b" },
   { id: "meta_ai", name: "Meta AI", desc: "Muse Spark · by Meta", icon: "◍", color: "text-sky-500", engine: "muse-spark-1.1", badge: "NEW" },
   { id: "claude", name: "Claude", desc: "Analytical", icon: "✦", color: "text-red-500", engine: "claude-4" },
