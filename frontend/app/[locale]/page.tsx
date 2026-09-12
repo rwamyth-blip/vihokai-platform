@@ -40,6 +40,7 @@ import {
   Layers3,
   MessageSquare,
   Zap,
+  ShoppingBag,
 } from "lucide-react"
 
 // ===== ภาษาทั่วโลก 100+ ภาษา =====
@@ -397,6 +398,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     navAllChats: "แชททั้งหมด",
     navModel: "AI โมเดล",
     navVihokModel: "VihokAI Model",
+    navMarketplace: "Model Marketplace",
     navImage: "สร้างภาพ (AI Image)",
     navDoc: "สร้างเอกสาร / สรุป",
     navAnalyze: "วิเคราะห์ไฟล์",
@@ -431,6 +433,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     navAllChats: "All Chats",
     navModel: "AI Models",
     navVihokModel: "VihokAI Model",
+    navMarketplace: "Model Marketplace",
     navImage: "Create Image (AI Image)",
     navDoc: "Create Document / Summarize",
     navAnalyze: "Analyze Files",
@@ -465,6 +468,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     navAllChats: "全部聊天",
     navModel: "AI 模型",
     navVihokModel: "VihokAI Model",
+    navMarketplace: "Model Marketplace",
     navImage: "AI 绘图",
     navDoc: "生成文档 / 摘要",
     navAnalyze: "文件分析",
@@ -499,6 +503,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     navAllChats: "すべてのチャット",
     navModel: "AIモデル",
     navVihokModel: "VihokAI Model",
+    navMarketplace: "Model Marketplace",
     navImage: "AI画像生成",
     navDoc: "ドキュメント生成 / 要約",
     navAnalyze: "ファイル分析",
@@ -533,6 +538,7 @@ const EXTRA_COPY: Record<string, Record<string, string>> = {
     navAllChats: "모든 채팅",
     navModel: "AI 모델",
     navVihokModel: "VihokAI Model",
+    navMarketplace: "Model Marketplace",
     navImage: "AI 이미지 생성",
     navDoc: "문서 생성 / 요약",
     navAnalyze: "파일 분석",
@@ -1296,6 +1302,13 @@ export default function Page() {
             label={t.navVihokModel}
             sub
             onClick={() => router.push(`/${locale}/models`)}
+          />
+          {/* ลูกเมนูของ AI Model — Model Marketplace (port จาก Vihokai.html) */}
+          <NavItem
+            icon={<ShoppingBag size={17} />}
+            label={t.navMarketplace}
+            sub
+            onClick={() => router.push(`/${locale}/marketplace`)}
           />
           <NavItem icon={<ImageIcon size={19} />} label={t.navImage} />
           <NavItem icon={<FileText size={19} />} label={t.navDoc} />
