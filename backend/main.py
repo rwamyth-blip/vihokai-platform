@@ -434,7 +434,7 @@ async def call_deepseek(prompt: str, locale: str, name: str = None, system_promp
         messages.append({"role": "user", "content": f"{mem_text}{prompt} {_tier_hint(_tier, get_language_name(locale))} "})
 
         response = await client.chat.completions.create(
-            model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+            model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
             messages=messages,
             max_tokens=_tier_tokens(_tier),
             temperature=0.6

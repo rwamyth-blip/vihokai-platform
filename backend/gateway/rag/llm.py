@@ -14,7 +14,7 @@ PROVIDERS = [
      "params": {"max_completion_tokens": int(os.getenv("NANO_BUDGET", "1024")), "reasoning_effort": "minimal"}},
     {"name": "groq",     "key": "GROQ_API_KEY",      "base_url": "https://api.groq.com/openai/v1",   "model": "openai/gpt-oss-120b",
      "params": {"temperature": 0.3}},
-    {"name": "deepseek", "key": "DEEPSEEK_API_KEY",  "base_url": "https://api.deepseek.com/v1",      "model": "deepseek-v4-flash",
+    {"name": "deepseek", "key": "DEEPSEEK_API_KEY",  "base_url": "https://api.deepseek.com/v1",      "model": "deepseek-flash",
      "params": {"temperature": 0.3}},
     {"name": "kimi",     "key": "KIMI_API_KEY",      "base_url": "https://api.moonshot.ai/v1",       "model": "kimi-k3",
      "params": {"temperature": 0.3}},

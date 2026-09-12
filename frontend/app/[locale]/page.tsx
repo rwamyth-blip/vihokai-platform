@@ -596,7 +596,7 @@ const AI_MODELS = [
   { id: "auto", name: "Auto", desc: "Smart Selection", icon: "◉", color: "text-orange-500", engine: "gpt-oss-120b · gpt-5-nano" },
   { id: "chatgpt", name: "ChatGPT", desc: "Smart & Fast", icon: "◉", color: "text-orange-500", engine: "gpt-5-nano" },
   { id: "gemini", name: "Gemini", desc: "Balanced", icon: "✦", color: "text-blue-500", engine: "gemini-3.1-flash-lite" },
-  { id: "deepseek", name: "DeepSeek", desc: "Reasoning", icon: "◈", color: "text-blue-600", engine: "deepseek-v4-flash" },
+  { id: "deepseek", name: "DeepSeek", desc: "V4.1 Flash", icon: "◈", color: "text-blue-600", engine: "deepseek-flash" },
   { id: "kimi", name: "Kimi", desc: "Creative", icon: "∞", color: "text-purple-500", engine: "kimi-k3" },
   { id: "meta_ai", name: "Meta AI", desc: "Fast · by Meta", icon: "◍", color: "text-sky-500", engine: "gpt-oss-120b", badge: "NEW" },
   { id: "claude", name: "Claude", desc: "Analytical", icon: "✦", color: "text-red-500", engine: "claude-4" },
